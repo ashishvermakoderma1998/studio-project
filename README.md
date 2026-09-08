@@ -21,14 +21,7 @@ npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### 3. Demo Login Credentials (Ready to use)
-- **Admin Account**:
-  - Email: `ashishweddingfilm@gmail.com`
-  - Password: `Ashish@2026!`
-- **Client Account**:
-  - Email: `rohan.client@gmail.com`
-  - Password: `User@1234`
-- You can also register any new account on the Signup page.
+
 
 ---
 
