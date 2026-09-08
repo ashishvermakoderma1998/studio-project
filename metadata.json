@@ -1,0 +1,6 @@
+{
+  "name": "Ashish Wedding Film Studio",
+  "description": "Ashish Wedding Film Studio is the #1 wedding photography & cinematic 4K videography studio in Koderma, Jhumri Telaiya, Jharkhand, India. Specializing in luxury weddings, candid photography, 4K drone cinematography, 12x36 Karizma & Canvera layflat photo albums, music production & media academy.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/admin/
+
+# Googlebot specific directives
+User-agent: Googlebot
+Allow: /
+Allow: /gallery
+Allow: /karizma
+Allow: /pricing
+Allow: /studio
+Allow: /services
+Allow: /about
+Allow: /contact
+Allow: /reviews
+
+# Sitemap location
+Sitemap: https://ashishweddingfilm.in/sitemap.xml
