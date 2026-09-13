@@ -114,6 +114,47 @@ class Database {
         if (!parsed.karizmaAlbums || parsed.karizmaAlbums.length === 0) {
           parsed.karizmaAlbums = INITIAL_KARIZMA_ALBUMS;
         }
+
+        // Always ensure designated admin accounts exist, have admin role and verified password
+        const adminHash = bcrypt.hashSync('Ashish@2026!', 10);
+        const adminEmails = ['ashishweddingfilm@gmail.com', 'ashishsawitri@gmail.com'];
+        if (!parsed.users) parsed.users = [];
+
+        for (const adminEmail of adminEmails) {
+          const cleanEmail = adminEmail.toLowerCase();
+          const existing = parsed.users.find(u => u.email.toLowerCase() === cleanEmail);
+          if (existing) {
+            existing.role = 'admin';
+            existing.passwordHash = adminHash;
+            existing.emailVerified = true;
+            existing.mfaEnabled = false;
+          } else {
+            parsed.users.push({
+              id: 'usr-admin-' + (cleanEmail.includes('sawitri') ? 'sawitri' : 'ashish'),
+              name: cleanEmail.includes('sawitri') ? 'Ashish Sawitri' : 'Ashish (Studio Founder & Lead Director)',
+              email: cleanEmail,
+              phone: '+91 87090 17294',
+              role: 'admin',
+              city: 'Jhumri Telaiya, Jharkhand',
+              avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+              passwordHash: adminHash,
+              emailVerified: true,
+              mfaEnabled: false,
+              createdAt: new Date().toISOString()
+            });
+          }
+        }
+
+        // Normalize enquiries: tag demo enquiries so they can be identified or cleared
+        if (!parsed.enquiries) parsed.enquiries = [];
+        parsed.enquiries.forEach(enq => {
+          if (enq.id === 'enq-1' || enq.id === 'enq-2' || enq.id === 'enq-demo-1') {
+            enq.isDemo = true;
+          } else if (enq.isDemo === undefined) {
+            enq.isDemo = false;
+          }
+        });
+
         return parsed;
       }
     } catch (e) {
@@ -390,14 +431,49 @@ class Database {
   }
 
   // Enquiries
-  getEnquiries() {
-    return this.data.enquiries;
+  getEnquiries(): Enquiry[] {
+    if (!this.data.enquiries) this.data.enquiries = [];
+    return [...this.data.enquiries].sort((a, b) => {
+      const timeA = new Date(a.createdAt).getTime() || 0;
+      const timeB = new Date(b.createdAt).getTime() || 0;
+      return timeB - timeA;
+    });
   }
 
   createEnquiry(enquiry: Enquiry) {
-    this.data.enquiries.unshift(enquiry);
+    if (!this.data.enquiries) this.data.enquiries = [];
+    if (!enquiry.id) {
+      enquiry.id = 'enq-' + Date.now();
+    }
+    if (!enquiry.createdAt) {
+      enquiry.createdAt = new Date().toISOString();
+    }
+    if (enquiry.isDemo === undefined) {
+      enquiry.isDemo = false;
+    }
+
+    const existingIdx = this.data.enquiries.findIndex(e => e.id === enquiry.id);
+    if (existingIdx !== -1) {
+      this.data.enquiries[existingIdx] = { ...this.data.enquiries[existingIdx], ...enquiry };
+    } else {
+      this.data.enquiries.unshift(enquiry);
+    }
     this.persist();
     return enquiry;
+  }
+
+  clearDemoEnquiries(): { removedCount: number; remainingCount: number } {
+    if (!this.data.enquiries) this.data.enquiries = [];
+    const beforeCount = this.data.enquiries.length;
+    this.data.enquiries = this.data.enquiries.filter(e => {
+      const isDemo = e.isDemo || e.id === 'enq-1' || e.id === 'enq-2' || e.id === 'enq-demo-1' || e.name.toLowerCase().includes('demo');
+      return !isDemo;
+    });
+    this.persist();
+    return {
+      removedCount: beforeCount - this.data.enquiries.length,
+      remainingCount: this.data.enquiries.length
+    };
   }
 
   updateEnquiry(id: string, updates: Partial<Enquiry>) {

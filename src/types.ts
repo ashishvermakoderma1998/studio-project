@@ -139,6 +139,7 @@ export interface Enquiry {
   message: string;
   status: 'New' | 'In Touch' | 'Converted' | 'Closed';
   adminReply?: string;
+  isDemo?: boolean;
   createdAt: string;
 }
 

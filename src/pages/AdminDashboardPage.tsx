@@ -41,7 +41,8 @@ import {
   Wallet,
   Facebook,
   Instagram,
-  Youtube
+  Youtube,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -98,6 +99,22 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedBookingDetails, setSelectedBookingDetails] = useState<Booking | null>(null);
+
+  // Search & Filter for Enquiries
+  const [enquirySearchTerm, setEnquirySearchTerm] = useState('');
+  const [enquiryFilter, setEnquiryFilter] = useState<string>('all');
+  const [isRefreshingEnquiries, setIsRefreshingEnquiries] = useState(false);
+  const [isClearingDemo, setIsClearingDemo] = useState(false);
+  const [isNewEnquiryModalOpen, setIsNewEnquiryModalOpen] = useState(false);
+  const [newEnquiryForm, setNewEnquiryForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    service: 'Royal Wedding Cinematography',
+    eventDate: '',
+    message: ''
+  });
+  const [isSubmittingNewEnquiry, setIsSubmittingNewEnquiry] = useState(false);
 
   const loadAdminData = async () => {
     setLoading(true);
@@ -270,6 +287,101 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
       showToast(err.message || 'Enquiry update failed', 'error');
     }
   };
+
+  const handleDeleteEnquiry = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete enquiry from "${name}"?`)) return;
+    try {
+      await api.deleteEnquiry(id);
+      showToast(`Enquiry from ${name} deleted successfully`, 'info');
+      setEnquiries((prev) => prev.filter((e) => e.id !== id));
+      loadAdminData();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete enquiry', 'error');
+    }
+  };
+
+  const handleClearDemoEnquiries = async () => {
+    if (!window.confirm('Are you sure you want to purge all sample demo enquiries? Only genuine client enquiries will remain.')) return;
+    setIsClearingDemo(true);
+    try {
+      const res = await api.clearDemoEnquiries();
+      showToast(res.message || 'Demo enquiries removed successfully', 'success');
+      await loadAdminData();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to clear demo enquiries', 'error');
+    } finally {
+      setIsClearingDemo(false);
+    }
+  };
+
+  const handleRefreshEnquiries = async () => {
+    setIsRefreshingEnquiries(true);
+    try {
+      const freshEnquiries = await api.getEnquiries();
+      setEnquiries(freshEnquiries);
+      showToast(`Updated! Loaded ${freshEnquiries.length} enquiries from database`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to refresh enquiries', 'error');
+    } finally {
+      setIsRefreshingEnquiries(false);
+    }
+  };
+
+  const handleCreateManualEnquiry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEnquiryForm.name.trim() || !newEnquiryForm.phone.trim() || !newEnquiryForm.message.trim()) {
+      showToast('Name, phone number, and requirement details are required', 'error');
+      return;
+    }
+    setIsSubmittingNewEnquiry(true);
+    try {
+      await api.submitEnquiry(newEnquiryForm);
+      showToast('Client enquiry recorded successfully!', 'success');
+      setIsNewEnquiryModalOpen(false);
+      setNewEnquiryForm({
+        name: '',
+        phone: '',
+        email: '',
+        service: 'Royal Wedding Cinematography',
+        eventDate: '',
+        message: ''
+      });
+      await loadAdminData();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to record enquiry', 'error');
+    } finally {
+      setIsSubmittingNewEnquiry(false);
+    }
+  };
+
+  const isRealClientEnquiry = (enq: Enquiry) => {
+    return !enq.isDemo && enq.id !== 'enq-1' && enq.id !== 'enq-2' && enq.id !== 'enq-demo-1';
+  };
+
+  const clientEnquiriesCount = enquiries.filter(isRealClientEnquiry).length;
+  const demoEnquiriesCount = enquiries.filter((e) => !isRealClientEnquiry(e)).length;
+  const newEnquiriesCount = enquiries.filter((e) => e.status === 'New').length;
+
+  const filteredEnquiries = enquiries.filter((enq) => {
+    const term = enquirySearchTerm.toLowerCase();
+    const matchesSearch =
+      enq.name.toLowerCase().includes(term) ||
+      enq.phone.toLowerCase().includes(term) ||
+      (enq.email && enq.email.toLowerCase().includes(term)) ||
+      enq.service.toLowerCase().includes(term) ||
+      (enq.message && enq.message.toLowerCase().includes(term));
+
+    if (!matchesSearch) return false;
+
+    if (enquiryFilter === 'client_only') {
+      return isRealClientEnquiry(enq);
+    }
+    if (enquiryFilter === 'demo_only') {
+      return !isRealClientEnquiry(enq);
+    }
+    if (enquiryFilter === 'all') return true;
+    return enq.status === enquiryFilter;
+  });
 
   const filteredBookings = bookings.filter((b) => {
     const matchesSearch = 
@@ -613,49 +725,310 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
 
         {/* TAB 2: ENQUIRIES */}
         {activeTab === 'enquiries' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {enquiries.map((enq) => (
-                <div
-                  key={enq.id}
-                  className="p-6 rounded-3xl bg-neutral-900/90 border border-neutral-800 space-y-4 flex flex-col justify-between"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-bold text-[10px]">
-                        {enq.service}
-                      </span>
-                      <span className="text-[11px] text-neutral-500">{enq.createdAt}</span>
-                    </div>
+          <div className="space-y-6">
+            {/* Top Stats & Actions Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 rounded-2xl bg-neutral-900/90 border border-neutral-800 space-y-1">
+                <span className="text-xs font-semibold text-neutral-400">Total Enquiries</span>
+                <div className="text-2xl font-black text-white">{enquiries.length}</div>
+                <div className="text-[11px] text-neutral-500">All registered inquiries</div>
+              </div>
 
-                    <h4 className="text-base font-bold text-white">{enq.name}</h4>
-                    <div className="flex items-center gap-3 text-xs text-neutral-400">
-                      <span>Phone: {enq.phone}</span>
-                      <span>•</span>
-                      <span>Email: {enq.email || 'None'}</span>
-                    </div>
+              <div className="p-5 rounded-2xl bg-neutral-900/90 border border-emerald-500/30 space-y-1">
+                <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  Genuine Client Leads
+                </span>
+                <div className="text-2xl font-black text-emerald-300">{clientEnquiriesCount}</div>
+                <div className="text-[11px] text-emerald-500/80">Real customer leads from website</div>
+              </div>
 
-                    <p className="text-xs text-neutral-300 bg-neutral-950 p-3 rounded-xl border border-neutral-800 italic">
-                      “{enq.message}”
-                    </p>
-                  </div>
+              <div className="p-5 rounded-2xl bg-neutral-900/90 border border-blue-500/30 space-y-1">
+                <span className="text-xs font-semibold text-blue-400 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-blue-400" />
+                  New & Unread
+                </span>
+                <div className="text-2xl font-black text-blue-300">{newEnquiriesCount}</div>
+                <div className="text-[11px] text-blue-400/80">Pending review & contact</div>
+              </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t border-neutral-800">
-                    <span className="text-xs text-neutral-400 font-semibold">Status:</span>
-                    <select
-                      value={enq.status}
-                      onChange={(e) => handleUpdateEnquiryStatus(enq.id, e.target.value as Enquiry['status'])}
-                      className="bg-neutral-950 border border-neutral-700 rounded-lg px-2 py-1 text-xs text-white"
-                    >
-                      <option value="New">New</option>
-                      <option value="In Touch">In Touch</option>
-                      <option value="Converted">Converted</option>
-                      <option value="Closed">Closed</option>
-                    </select>
-                  </div>
+              <div className="p-5 rounded-2xl bg-neutral-900/90 border border-neutral-800 space-y-1">
+                <span className="text-xs font-semibold text-neutral-400">Sample Demo Entries</span>
+                <div className="text-2xl font-black text-neutral-400">{demoEnquiriesCount}</div>
+                <div className="text-[11px] text-neutral-500">
+                  {demoEnquiriesCount > 0 ? 'Pre-seeded sample records' : 'No demo data present'}
                 </div>
+              </div>
+            </div>
+
+            {/* Actions & Filter Toolbar */}
+            <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between p-4 rounded-2xl bg-neutral-900/80 border border-neutral-800">
+              <div className="flex-1 relative">
+                <Search className="w-4 h-4 text-neutral-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={enquirySearchTerm}
+                  onChange={(e) => setEnquirySearchTerm(e.target.value)}
+                  placeholder="Search enquiries by client name, phone number, email, event details..."
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 transition-colors"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleRefreshEnquiries}
+                  disabled={isRefreshingEnquiries}
+                  className="px-3 py-2 rounded-xl bg-neutral-950 border border-neutral-800 hover:border-neutral-700 text-xs font-semibold text-neutral-300 hover:text-white flex items-center gap-1.5 transition-colors"
+                  title="Reload enquiries from server database"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${isRefreshingEnquiries ? 'animate-spin' : ''}`} />
+                  <span>Refresh</span>
+                </button>
+
+                {demoEnquiriesCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearDemoEnquiries}
+                    disabled={isClearingDemo}
+                    className="px-3 py-2 rounded-xl bg-red-950/40 border border-red-800/50 hover:bg-red-900/40 text-xs font-semibold text-red-300 hover:text-red-200 flex items-center gap-1.5 transition-colors"
+                    title="Remove sample demo enquiries from database"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                    <span>{isClearingDemo ? 'Purging...' : 'Purge Demo Enquiries'}</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsNewEnquiryModalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Record Walk-in Lead</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex flex-wrap items-center gap-2 pb-1">
+              {[
+                { key: 'all', label: `All (${enquiries.length})` },
+                { key: 'client_only', label: `★ Genuine Clients (${clientEnquiriesCount})` },
+                { key: 'New', label: `New (${newEnquiriesCount})` },
+                { key: 'In Touch', label: 'In Touch' },
+                { key: 'Converted', label: 'Converted' },
+                { key: 'Closed', label: 'Closed' },
+                ...(demoEnquiriesCount > 0 ? [{ key: 'demo_only', label: `Demo Sample (${demoEnquiriesCount})` }] : [])
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setEnquiryFilter(tab.key as any)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    enquiryFilter === tab.key
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold'
+                      : 'bg-neutral-900 text-neutral-400 hover:text-neutral-200 border border-neutral-800'
+                  }`}
+                >
+                  {tab.label}
+                </button>
               ))}
             </div>
+
+            {/* Enquiries Grid */}
+            {filteredEnquiries.length === 0 ? (
+              <div className="p-12 text-center rounded-3xl bg-neutral-900/60 border border-neutral-800 space-y-3">
+                <MessageSquare className="w-10 h-10 text-neutral-600 mx-auto" />
+                <h4 className="text-base font-bold text-neutral-200">No enquiries match your search</h4>
+                <p className="text-xs text-neutral-400 max-w-sm mx-auto">
+                  {enquirySearchTerm || enquiryFilter !== 'all'
+                    ? 'Try clearing the search query or changing the filter options above.'
+                    : 'No client inquiries recorded yet. When users submit the enquiry form, their details will appear here instantly.'}
+                </p>
+                <div className="pt-2 flex justify-center gap-3">
+                  {(enquirySearchTerm || enquiryFilter !== 'all') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEnquirySearchTerm('');
+                        setEnquiryFilter('all');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-xs font-semibold text-white transition-colors"
+                    >
+                      Clear Filters
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsNewEnquiryModalOpen(true)}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold transition-colors"
+                  >
+                    + Add Client Lead
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredEnquiries.map((enq) => {
+                  const isClient = isRealClientEnquiry(enq);
+                  const cleanPhone = enq.phone.replace(/[^0-9]/g, '');
+                  const formattedPhone = cleanPhone.startsWith('91') ? cleanPhone : '91' + cleanPhone.replace(/^0+/, '');
+                  const waText = encodeURIComponent(
+                    `Namaste ${enq.name}! Thank you for reaching out to Ashish Wedding Film Studio. We received your enquiry for ${enq.service}${enq.eventDate ? ` on ${enq.eventDate}` : ''}. How can we assist you with your wedding cinematography?`
+                  );
+
+                  let formattedDate = enq.createdAt;
+                  try {
+                    const d = new Date(enq.createdAt);
+                    if (!isNaN(d.getTime())) {
+                      formattedDate = d.toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      });
+                    }
+                  } catch {}
+
+                  return (
+                    <div
+                      key={enq.id}
+                      className={`p-6 rounded-3xl space-y-4 flex flex-col justify-between transition-all ${
+                        isClient
+                          ? 'bg-neutral-900/95 border-2 border-emerald-500/40 shadow-lg shadow-emerald-950/20'
+                          : 'bg-neutral-900/70 border border-neutral-800'
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        {/* Header Tags */}
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            {isClient ? (
+                              <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[10px] border border-emerald-500/30 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                Genuine Client Lead
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-full bg-neutral-800 text-neutral-400 font-medium text-[10px] border border-neutral-700">
+                                Sample Demo
+                              </span>
+                            )}
+                            <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 font-bold text-[10px] border border-amber-500/30">
+                              {enq.service}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-neutral-400 flex items-center gap-1 font-mono">
+                            <Clock className="w-3 h-3 text-neutral-500" />
+                            {formattedDate}
+                          </span>
+                        </div>
+
+                        {/* Client Name */}
+                        <div>
+                          <h4 className="text-lg font-bold text-white tracking-tight">{enq.name}</h4>
+                          {enq.eventDate && (
+                            <div className="flex items-center gap-1.5 text-xs text-amber-400 font-medium mt-0.5">
+                              <Calendar className="w-3.5 h-3.5" />
+                              <span>Event Date: {enq.eventDate}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Quick Contact Action Bar */}
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <a
+                            href={`tel:${enq.phone}`}
+                            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-neutral-950 hover:bg-neutral-800 text-neutral-200 hover:text-amber-400 border border-neutral-800 transition-colors"
+                            title="Call client phone"
+                          >
+                            <Phone className="w-3.5 h-3.5 text-amber-400" />
+                            <span>{enq.phone}</span>
+                          </a>
+
+                          <a
+                            href={`https://wa.me/${formattedPhone}?text=${waText}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/50 transition-colors"
+                            title="Open WhatsApp chat with client"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>WhatsApp</span>
+                          </a>
+
+                          {enq.email ? (
+                            <a
+                              href={`mailto:${enq.email}`}
+                              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-neutral-950 hover:bg-neutral-800 text-neutral-300 hover:text-blue-300 border border-neutral-800 transition-colors"
+                              title="Send Email"
+                            >
+                              <Mail className="w-3.5 h-3.5 text-blue-400" />
+                              <span className="truncate max-w-[150px]">{enq.email}</span>
+                            </a>
+                          ) : (
+                            <span className="text-[11px] text-neutral-500 italic px-2">No email provided</span>
+                          )}
+                        </div>
+
+                        {/* Client Message */}
+                        <div className="pt-2">
+                          <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider block mb-1">
+                            Client Message / Requirements:
+                          </span>
+                          <div className="text-xs text-neutral-200 bg-neutral-950/90 p-3.5 rounded-xl border border-neutral-800/90 leading-relaxed font-sans">
+                            “{enq.message}”
+                          </div>
+                        </div>
+
+                        {/* Admin Reply or Notes if available */}
+                        {enq.adminReply && (
+                          <div className="text-xs text-amber-200/90 bg-amber-950/20 p-2.5 rounded-lg border border-amber-800/30">
+                            <span className="font-semibold text-amber-400">Studio Reply / Note: </span>
+                            {enq.adminReply}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Footer: Status and Delete Action */}
+                      <div className="flex items-center justify-between pt-3 border-t border-neutral-800 gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-neutral-400 font-semibold">Lead Status:</span>
+                          <select
+                            value={enq.status}
+                            onChange={(e) => handleUpdateEnquiryStatus(enq.id, e.target.value as Enquiry['status'])}
+                            className={`rounded-lg px-2.5 py-1 text-xs font-bold border transition-colors ${
+                              enq.status === 'New'
+                                ? 'bg-blue-950 text-blue-300 border-blue-700'
+                                : enq.status === 'In Touch'
+                                ? 'bg-amber-950 text-amber-300 border-amber-700'
+                                : enq.status === 'Converted'
+                                ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                                : 'bg-neutral-950 text-neutral-400 border-neutral-700'
+                            }`}
+                          >
+                            <option value="New">New Lead</option>
+                            <option value="In Touch">In Touch (Contacted)</option>
+                            <option value="Converted">Converted (Booked)</option>
+                            <option value="Closed">Closed</option>
+                          </select>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEnquiry(enq.id, enq.name)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:text-red-400 hover:bg-red-950/30 transition-colors"
+                          title="Delete this enquiry"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -1449,6 +1822,126 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* RECORD WALK-IN / MANUAL CLIENT LEAD MODAL */}
+        {isNewEnquiryModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                    <Plus className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Record Client Enquiry / Lead</h3>
+                    <p className="text-xs text-neutral-400">Save an in-person, WhatsApp, or phone inquiry</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsNewEnquiryModalOpen(false)}
+                  className="text-neutral-500 hover:text-white p-1 rounded-lg hover:bg-neutral-800"
+                >
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateManualEnquiry} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-neutral-300">Client Full Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={newEnquiryForm.name}
+                      onChange={(e) => setNewEnquiryForm({ ...newEnquiryForm, name: e.target.value })}
+                      placeholder="e.g. Rahul Sharma"
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-neutral-300">Phone Number *</label>
+                    <input
+                      type="tel"
+                      required
+                      value={newEnquiryForm.phone}
+                      onChange={(e) => setNewEnquiryForm({ ...newEnquiryForm, phone: e.target.value })}
+                      placeholder="e.g. +91 98765 43210"
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-neutral-300">Email Address (Optional)</label>
+                    <input
+                      type="email"
+                      value={newEnquiryForm.email}
+                      onChange={(e) => setNewEnquiryForm({ ...newEnquiryForm, email: e.target.value })}
+                      placeholder="e.g. client@gmail.com"
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-neutral-300">Wedding / Event Date</label>
+                    <input
+                      type="date"
+                      value={newEnquiryForm.eventDate}
+                      onChange={(e) => setNewEnquiryForm({ ...newEnquiryForm, eventDate: e.target.value })}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-neutral-300">Service Required</label>
+                  <select
+                    value={newEnquiryForm.service}
+                    onChange={(e) => setNewEnquiryForm({ ...newEnquiryForm, service: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="Royal Wedding Cinematography">Royal Wedding Cinematography</option>
+                    <option value="Karizma & Canvera Album Designing">Karizma & Canvera Album Designing</option>
+                    <option value="Pre-Wedding & Destination Shoot">Pre-Wedding & Destination Shoot</option>
+                    <option value="4K Drone Aerial Coverage">4K Drone Aerial Coverage</option>
+                    <option value="Corporate / Event Coverage">Corporate / Event Coverage</option>
+                    <option value="General Studio Consultation">General Studio Consultation</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-neutral-300">Client Requirements & Notes *</label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={newEnquiryForm.message}
+                    onChange={(e) => setNewEnquiryForm({ ...newEnquiryForm, message: e.target.value })}
+                    placeholder="Details about days of shoot, location, special requests, estimated budget..."
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsNewEnquiryModalOpen(false)}
+                    className="flex-1 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-xs font-semibold text-neutral-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingNewEnquiry}
+                    className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold shadow-lg shadow-amber-500/20"
+                  >
+                    {isSubmittingNewEnquiry ? 'Saving Lead...' : 'Save Client Lead'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

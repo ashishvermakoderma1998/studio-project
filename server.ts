@@ -1471,19 +1471,20 @@ async function startServer() {
   app.post('/api/enquiries', (req: Request, res: Response) => {
     const { name, email, phone, service, eventDate, message } = req.body;
 
-    if (!name || !email || !phone || !message) {
-      return res.status(400).json({ error: 'Name, email, phone, and message are required' });
+    if (!name || !phone || !message) {
+      return res.status(400).json({ error: 'Name, phone number, and message are required' });
     }
 
     const newEnquiry: Enquiry = {
       id: 'enq-' + Date.now(),
-      name: name.trim(),
-      email: email.trim(),
-      phone: phone.trim(),
-      service: service || 'General Enquiry',
+      name: String(name).trim(),
+      email: email ? String(email).trim() : '',
+      phone: String(phone).trim(),
+      service: service || 'Royal Wedding Cinematography',
       eventDate: eventDate || '',
-      message: message.trim(),
+      message: String(message).trim(),
       status: 'New',
+      isDemo: false,
       createdAt: new Date().toISOString()
     };
 
@@ -1491,9 +1492,31 @@ async function startServer() {
     res.status(201).json({ message: 'Thank you for reaching out! Ashish Wedding Film Studio will contact you shortly.', enquiry: saved });
   });
 
+  // Sync enquiries from client storage (e.g. offline recovery or migration)
+  app.post('/api/enquiries/sync', (req: Request, res: Response) => {
+    const { enquiries } = req.body;
+    if (Array.isArray(enquiries)) {
+      for (const enq of enquiries) {
+        if (enq && enq.name && enq.phone) {
+          db.createEnquiry({
+            ...enq,
+            isDemo: enq.isDemo || false,
+          });
+        }
+      }
+    }
+    res.json({ message: 'Enquiries synced successfully', count: db.getEnquiries().length });
+  });
+
   // Get enquiries (Admin only)
   app.get('/api/enquiries', authenticateToken, requireAdmin, (_req: AuthRequest, res: Response) => {
     res.json(db.getEnquiries());
+  });
+
+  // Clear demo enquiries (Admin only)
+  app.delete('/api/enquiries/demo/clear', authenticateToken, requireAdmin, (_req: AuthRequest, res: Response) => {
+    const result = db.clearDemoEnquiries();
+    res.json({ message: `Purged ${result.removedCount} demo enquiries`, ...result });
   });
 
   // Update enquiry status / reply (Admin only)

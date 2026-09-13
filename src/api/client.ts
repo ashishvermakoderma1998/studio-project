@@ -73,20 +73,7 @@ const seedLocalDataIfEmpty = () => {
   }
 
   if (!localStorage.getItem(ENQUIRIES_STORAGE_KEY)) {
-    const defaultEnquiries: Enquiry[] = [
-      {
-        id: 'enq-demo-1',
-        name: 'Amit Verma',
-        email: 'amit.verma@gmail.com',
-        phone: '+91 87090 17294',
-        service: 'Cinematic Wedding Films',
-        eventDate: '2026-12-14',
-        message: 'Looking for full 4K drone and 3-day wedding film package in Koderma.',
-        status: 'New',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString()
-      }
-    ];
-    localStorage.setItem(ENQUIRIES_STORAGE_KEY, JSON.stringify(defaultEnquiries));
+    localStorage.setItem(ENQUIRIES_STORAGE_KEY, JSON.stringify([]));
   }
 };
 
@@ -982,18 +969,57 @@ export const api = {
     ),
 
   // Enquiries
-  getEnquiries: () => apiRequest<Enquiry[]>('/api/enquiries'),
-  submitEnquiry: (payload: {
+  getEnquiries: async (): Promise<Enquiry[]> => {
+    try {
+      const serverEnquiries = await apiRequest<Enquiry[]>('/api/enquiries');
+      // Sync any local client enquiries created in offline fallback
+      try {
+        const localRaw = localStorage.getItem(ENQUIRIES_STORAGE_KEY);
+        if (localRaw) {
+          const localEnquiries: Enquiry[] = JSON.parse(localRaw);
+          const unsynced = localEnquiries.filter(
+            le => !serverEnquiries.some(se => se.id === le.id) && !le.isDemo && le.id !== 'enq-demo-1'
+          );
+          if (unsynced.length > 0) {
+            await apiRequest('/api/enquiries/sync', {
+              method: 'POST',
+              body: JSON.stringify({ enquiries: unsynced })
+            }).catch(() => {});
+            return await apiRequest<Enquiry[]>('/api/enquiries');
+          }
+        }
+      } catch {}
+      return serverEnquiries;
+    } catch {
+      return handleLocalFallback<Enquiry[]>('/api/enquiries', { method: 'GET' });
+    }
+  },
+  submitEnquiry: async (payload: {
     name: string;
-    email: string;
+    email?: string;
     phone: string;
     service?: string;
     eventDate?: string;
     message: string;
-  }) =>
-    apiRequest<{ message: string; enquiry: Enquiry }>('/api/enquiries', {
+  }) => {
+    const res = await apiRequest<{ message: string; enquiry: Enquiry }>('/api/enquiries', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+    try {
+      if (res?.enquiry) {
+        const localList: Enquiry[] = JSON.parse(localStorage.getItem(ENQUIRIES_STORAGE_KEY) || '[]');
+        if (!localList.some(e => e.id === res.enquiry.id)) {
+          localList.unshift(res.enquiry);
+          localStorage.setItem(ENQUIRIES_STORAGE_KEY, JSON.stringify(localList));
+        }
+      }
+    } catch {}
+    return res;
+  },
+  clearDemoEnquiries: () =>
+    apiRequest<{ message: string; removedCount: number; remainingCount: number }>('/api/enquiries/demo/clear', {
+      method: 'DELETE',
     }),
   updateEnquiry: (id: string, payload: { status?: string; adminReply?: string }) =>
     apiRequest<Enquiry>(`/api/enquiries/${id}`, {
