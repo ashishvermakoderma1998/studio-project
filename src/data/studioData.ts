@@ -589,3 +589,10 @@ export const INITIAL_KARIZMA_ALBUMS: KarizmaAlbumItem[] = [
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 50).toISOString()
   }
 ];
+
+export const STUDIO_SOCIAL_LINKS = {
+  facebook: 'https://www.facebook.com/ashishweddingfilm',
+  instagram: 'https://www.instagram.com/ashishweddingfilm',
+  youtube: 'https://www.youtube.com/@ashishweddingfilm',
+  whatsapp: 'https://wa.me/918709017294?text=Hello%20Ashish%20Wedding%20Film%20Studio,%20I%20want%20to%20inquire%20about%20your%20photography%20and%20film%20packages.'
+};

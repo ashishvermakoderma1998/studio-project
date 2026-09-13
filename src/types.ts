@@ -225,5 +225,8 @@ export interface PaymentSettings {
   razorpayKeySecret?: string;
   studioLocation: string;
   currency: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  youtubeUrl?: string;
 }
 

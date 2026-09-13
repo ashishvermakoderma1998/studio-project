@@ -36,6 +36,7 @@ export interface PendingRegistration {
   phone: string;
   passwordHash: string;
   otpHash: string;
+  otpHashes?: string[];
   expiresAt: number;
   attempts: number;
   otpHint?: string;
@@ -56,6 +57,7 @@ interface DatabaseSchema {
 
 const DATA_DIR = path.join(process.cwd(), '.data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
+const PENDING_REGS_FILE = path.join(DATA_DIR, 'pending_registrations.json');
 
 // Studio default data is imported from src/data/studioData.ts (INITIAL_SERVICES, INITIAL_GALLERY, INITIAL_REVIEWS, INITIAL_KARIZMA_ALBUMS)
 
@@ -65,6 +67,43 @@ class Database {
 
   constructor() {
     this.data = this.loadData();
+    this.loadPendingRegistrations();
+  }
+
+  private loadPendingRegistrations(): void {
+    try {
+      if (fs.existsSync(PENDING_REGS_FILE)) {
+        const raw = fs.readFileSync(PENDING_REGS_FILE, 'utf-8');
+        const parsed = JSON.parse(raw);
+        const now = Date.now();
+        for (const [key, val] of Object.entries(parsed)) {
+          const item = val as PendingRegistration;
+          if (item && item.expiresAt > now) {
+            this.pendingRegistrations.set(key, item);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load pending registrations file:', e);
+    }
+  }
+
+  private persistPendingRegistrations(): void {
+    try {
+      const obj: Record<string, PendingRegistration> = {};
+      const now = Date.now();
+      for (const [key, val] of this.pendingRegistrations.entries()) {
+        if (val.expiresAt > now) {
+          obj[key] = val;
+        }
+      }
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(PENDING_REGS_FILE, JSON.stringify(obj, null, 2), 'utf-8');
+    } catch (e) {
+      console.warn('Could not persist pending registrations file:', e);
+    }
   }
 
   private loadData(): DatabaseSchema {
@@ -209,7 +248,19 @@ class Database {
   // Pending Registration with Gmail OTP
   setPendingRegistration(reg: PendingRegistration): void {
     const clean = reg.email.trim().toLowerCase();
-    this.pendingRegistrations.set(clean, { ...reg, email: clean });
+    const existing = this.pendingRegistrations.get(clean);
+    const hashes = new Set<string>();
+    if (existing?.otpHash) hashes.add(existing.otpHash);
+    if (existing?.otpHashes) existing.otpHashes.forEach(h => hashes.add(h));
+    if (reg.otpHash) hashes.add(reg.otpHash);
+    if (reg.otpHashes) reg.otpHashes.forEach(h => hashes.add(h));
+
+    this.pendingRegistrations.set(clean, {
+      ...reg,
+      email: clean,
+      otpHashes: Array.from(hashes)
+    });
+    this.persistPendingRegistrations();
   }
 
   getPendingRegistration(email: string): PendingRegistration | null {
@@ -218,6 +269,7 @@ class Database {
     if (!reg) return null;
     if (Date.now() > reg.expiresAt) {
       this.pendingRegistrations.delete(clean);
+      this.persistPendingRegistrations();
       return null;
     }
     return reg;
@@ -226,6 +278,7 @@ class Database {
   deletePendingRegistration(email: string): void {
     const clean = email.trim().toLowerCase();
     this.pendingRegistrations.delete(clean);
+    this.persistPendingRegistrations();
   }
 
   // Security Audit Logging
@@ -475,8 +528,20 @@ class Database {
         accountHolder: 'Ashish Kumar',
         razorpayKeyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_ashish_studio',
         studioLocation: 'Gumo, Kharitand, Jhumri Telaiya, Koderma, Jharkhand',
-        currency: 'INR'
+        currency: 'INR',
+        facebookUrl: 'https://www.facebook.com/ashishweddingfilm',
+        instagramUrl: 'https://www.instagram.com/ashishweddingfilm',
+        youtubeUrl: 'https://www.youtube.com/@ashishweddingfilm'
       };
+    }
+    if (!this.data.paymentSettings.facebookUrl) {
+      this.data.paymentSettings.facebookUrl = 'https://www.facebook.com/ashishweddingfilm';
+    }
+    if (!this.data.paymentSettings.instagramUrl) {
+      this.data.paymentSettings.instagramUrl = 'https://www.instagram.com/ashishweddingfilm';
+    }
+    if (!this.data.paymentSettings.youtubeUrl) {
+      this.data.paymentSettings.youtubeUrl = 'https://www.youtube.com/@ashishweddingfilm';
     }
     return this.data.paymentSettings;
   }

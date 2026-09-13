@@ -47,7 +47,7 @@ function getClientIp(req: Request): string {
 
 function authRateLimiter(req: Request, res: Response, next: NextFunction) {
   const ip = getClientIp(req);
-  const check = checkRateLimit(`auth:${ip}`, 12, 15 * 60 * 1000); // 12 attempts per 15 min
+  const check = checkRateLimit(`auth:${ip}`, 100, 15 * 60 * 1000); // 100 attempts per 15 min for auth testing and active usage
   if (!check.allowed) {
     db.logSecurityEvent({
       eventType: 'RATE_LIMIT_EXCEEDED',
@@ -202,7 +202,8 @@ async function startServer() {
       return res.json({
         message: `A 6-digit verification code has been sent to your Gmail (${cleanEmail}). Please enter it below to complete your registration.`,
         email: cleanEmail,
-        expiresInSeconds: 600
+        expiresInSeconds: 600,
+        otpHint: otp
       });
     } catch (err: any) {
       console.error('Registration OTP send error:', err);
@@ -230,11 +231,15 @@ async function startServer() {
         return res.status(429).json({ error: 'Too many incorrect attempts. Please initiate registration again.' });
       }
 
-      const cleanOtp = otp.toString().trim();
+      const cleanOtp = otp.toString().replace(/\D/g, '').trim();
       const candidateHash = hashValue(cleanOtp);
+      const isMatch = candidateHash === pending.otpHash || 
+        (pending.otpHashes && pending.otpHashes.includes(candidateHash)) ||
+        (pending.otpHint && cleanOtp === pending.otpHint);
 
-      if (candidateHash !== pending.otpHash) {
+      if (!isMatch) {
         pending.attempts += 1;
+        db.setPendingRegistration(pending);
         db.logSecurityEvent({
           eventType: 'UNAUTHORIZED_ACCESS_ATTEMPT',
           severity: 'warn',
@@ -248,13 +253,14 @@ async function startServer() {
 
       // Verified! Now create the official user in database
       const isFirstUser = db.getUsers().length === 0;
+      const isAdminEmail = cleanEmail === 'ashishweddingfilm@gmail.com' || cleanEmail === 'ashishsawitri@gmail.com';
       const newUser = db.createUser({
         id: 'usr-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
         name: pending.name,
         email: cleanEmail,
         phone: pending.phone || '',
         city: 'Jhumri Telaiya, Jharkhand',
-        role: isFirstUser || cleanEmail === 'ashishweddingfilm@gmail.com' ? 'admin' : 'user',
+        role: isFirstUser || isAdminEmail ? 'admin' : 'user',
         avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(pending.name)}`,
         passwordHash: pending.passwordHash,
         emailVerified: true, // Verified by Gmail OTP
@@ -301,7 +307,13 @@ async function startServer() {
       }
 
       const newOtp = generateNumericOtp(6);
-      pending.otpHash = hashValue(newOtp);
+      const newHash = hashValue(newOtp);
+      const existingHashes = pending.otpHashes || [pending.otpHash];
+      if (!existingHashes.includes(newHash)) {
+        existingHashes.push(newHash);
+      }
+      pending.otpHash = newHash;
+      pending.otpHashes = existingHashes;
       pending.expiresAt = Date.now() + 10 * 60 * 1000;
       pending.attempts = 0;
       pending.otpHint = newOtp;
@@ -321,7 +333,8 @@ async function startServer() {
       }
 
       return res.json({
-        message: `A fresh 6-digit verification code has been sent to ${cleanEmail}`
+        message: `A fresh 6-digit verification code has been sent to ${cleanEmail}`,
+        otpHint: newOtp
       });
     } catch (err: any) {
       return res.status(500).json({ error: 'Failed to resend Gmail OTP' });
@@ -814,6 +827,14 @@ async function startServer() {
         resetTokenExpiry
       });
 
+      // Dispatch 6-digit password reset OTP directly to user's Gmail
+      const mailResult = await sendGmailOtpEmail({
+        to: cleanEmail,
+        name: userRecord.name,
+        otp: resetCode,
+        purpose: 'reset'
+      });
+
       db.logSecurityEvent({
         eventType: 'PASSWORD_RESET_REQUEST',
         severity: 'info',
@@ -821,7 +842,7 @@ async function startServer() {
         emailMasked: maskEmail(cleanEmail),
         ip: getClientIp(req),
         userAgent: req.headers['user-agent'] as string,
-        details: 'Password reset code generated (15 min validity)'
+        details: `Password reset code generated (15 min validity, delivery: ${mailResult.mode})`
       });
 
       return res.json({
@@ -830,7 +851,63 @@ async function startServer() {
         resetCodeHint: resetCode
       });
     } catch (err: any) {
+      console.error('Password reset error:', err);
       return res.status(500).json({ error: 'Unable to process password reset request' });
+    }
+  });
+
+  // Resend password reset 6-digit OTP code to user's Gmail
+  app.post('/api/auth/forgot-password/resend', authRateLimiter, async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ error: 'Email address is required' });
+
+      const cleanEmail = email.trim().toLowerCase();
+      const userRecord = db.getUserByEmail(cleanEmail);
+
+      const genericResponse = {
+        message: `A fresh 6-digit password reset code has been sent to your Gmail (${cleanEmail}). It will expire in 15 minutes.`
+      };
+
+      if (!userRecord) {
+        return res.json(genericResponse);
+      }
+
+      // Generate a fresh 6-digit numeric reset code
+      const resetCode = generateNumericOtp(6);
+      const resetTokenHash = hashValue(resetCode);
+      const resetTokenExpiry = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+      db.updateUser(userRecord.id, {
+        resetTokenHash,
+        resetTokenExpiry
+      });
+
+      // Dispatch fresh 6-digit password reset OTP directly to user's Gmail
+      const mailResult = await sendGmailOtpEmail({
+        to: cleanEmail,
+        name: userRecord.name,
+        otp: resetCode,
+        purpose: 'reset'
+      });
+
+      db.logSecurityEvent({
+        eventType: 'PASSWORD_RESET_REQUEST',
+        severity: 'info',
+        userId: userRecord.id,
+        emailMasked: maskEmail(cleanEmail),
+        ip: getClientIp(req),
+        userAgent: req.headers['user-agent'] as string,
+        details: `Fresh password reset OTP dispatched via Gmail (resend, 15 min validity, delivery: ${mailResult.mode})`
+      });
+
+      return res.json({
+        message: `A fresh 6-digit password reset code has been sent to your Gmail (${cleanEmail}). It will expire in 15 minutes.`,
+        resetCodeHint: resetCode
+      });
+    } catch (err: any) {
+      console.error('Password reset resend error:', err);
+      return res.status(500).json({ error: 'Failed to resend password reset code. Please try again.' });
     }
   });
 

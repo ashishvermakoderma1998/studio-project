@@ -57,6 +57,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
 
   // Gmail OTP Account Creation State
   const [registerOtp, setRegisterOtp] = useState<string>('');
+  const [registerOtpHint, setRegisterOtpHint] = useState<string | null>(null);
   const [otpCooldown, setOtpCooldown] = useState<number>(0);
 
   // 2FA Challenge State
@@ -66,9 +67,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
 
   // Password Reset / Verification State
   const [resetCode, setResetCode] = useState<string>('');
+  const [resetOtpCooldown, setResetOtpCooldown] = useState<number>(0);
+  const [resetOtpHint, setResetOtpHint] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState<string>('');
 
-  // Cooldown countdown effect
+  // Cooldown countdown effect for registration OTP
   useEffect(() => {
     if (otpCooldown <= 0) return;
     const timer = setInterval(() => {
@@ -76,6 +79,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
     }, 1000);
     return () => clearInterval(timer);
   }, [otpCooldown]);
+
+  // Cooldown countdown effect for password reset OTP
+  useEffect(() => {
+    if (resetOtpCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResetOtpCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resetOtpCooldown]);
 
   // Password Strength Indicators
   const hasMinLength = password.length >= 8;
@@ -126,7 +138,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
         }
 
         // Send 6-digit Gmail OTP to verify before creating account
-        await sendRegisterOtp({
+        const otpRes = await sendRegisterOtp({
           name: name.trim(),
           email: email.trim(),
           phone: phone.trim(),
@@ -135,6 +147,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
 
         setRegisterOtp('');
         setOtpCooldown(60);
+        if (otpRes?.otpHint) {
+          setRegisterOtpHint(otpRes.otpHint);
+        }
         setMode('verify-register-otp');
         showToast(`Verification code sent to your Gmail (${email.trim()}). Please check your inbox.`, 'success');
       }
@@ -181,6 +196,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
       const res = await resendRegisterOtp(email.trim());
       setRegisterOtp('');
       setOtpCooldown(60);
+      if (res?.otpHint) {
+        setRegisterOtpHint(res.otpHint);
+      }
       showToast(res.message || `A fresh 6-digit code has been sent to your Gmail (${email.trim()})`, 'success');
     } catch (err: any) {
       const msg = err?.message || 'Failed to resend code';
@@ -225,10 +243,36 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
     try {
       const res = await api.forgotPassword(email.trim());
       setResetCode('');
-      showToast(res.message, 'success');
+      setResetOtpCooldown(60);
+      if (res?.resetCodeHint) {
+        setResetOtpHint(res.resetCodeHint);
+      }
+      showToast(res.message || `Password reset code sent to your Gmail (${email.trim()})`, 'success');
       setMode('reset-password');
     } catch (err: any) {
       setErrorMessage(err?.message || 'Failed to process password reset request.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendResetOtp = async () => {
+    if (resetOtpCooldown > 0 || loading || !email.trim()) return;
+    setLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const res = await api.resendForgotPasswordOtp(email.trim());
+      setResetCode('');
+      setResetOtpCooldown(60);
+      if (res?.resetCodeHint) {
+        setResetOtpHint(res.resetCodeHint);
+      }
+      showToast(res.message || `A fresh 6-digit reset code has been sent to your Gmail (${email.trim()})`, 'success');
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to resend reset code';
+      setErrorMessage(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -258,10 +302,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
         code: resetCode.trim(),
         newPassword: password
       });
-      showToast(res.message, 'success');
+      showToast(res.message || 'Password successfully updated! Please sign in with your new password.', 'success');
       setPassword('');
       setConfirmPassword('');
       setResetCode('');
+      setResetOtpHint(null);
       setMode('login');
     } catch (err: any) {
       setErrorMessage(err?.message || 'Failed to reset password. Code may have expired.');
@@ -402,6 +447,22 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
                 <p className="text-[11px] text-neutral-400 mt-1.5">
                   Please check your Gmail inbox and spam folder for the one-time password.
                 </p>
+
+                {registerOtpHint && (
+                  <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs flex items-center justify-between text-amber-300">
+                    <span className="flex items-center gap-1.5">
+                      <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Preview OTP: <strong className="font-mono text-amber-400 tracking-widest">{registerOtpHint}</strong></span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setRegisterOtp(registerOtpHint)}
+                      className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-[11px] transition-colors cursor-pointer"
+                    >
+                      Auto Fill
+                    </button>
+                  </div>
+                )}
               </div>
 
               <button
@@ -554,10 +615,44 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
           {/* VIEW: Reset Password (Confirm with OTP) */}
           {mode === 'reset-password' && (
             <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+              {/* Email Status & Quick Edit */}
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                    <MailCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-amber-300 block">Reset Code Dispatched</span>
+                    <span className="text-neutral-400 font-mono text-[11px]">{email}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('forgot-password');
+                    setResetOtpHint(null);
+                  }}
+                  className="text-[11px] font-semibold text-amber-400 underline hover:text-amber-300 shrink-0 cursor-pointer"
+                >
+                  Change Email
+                </button>
+              </div>
+
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-neutral-300 block mb-1.5">
-                  6-Digit Reset Code
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-neutral-300 block">
+                    6-Digit Reset Code
+                  </label>
+                  <a
+                    href="https://mail.google.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                  >
+                    <span>Open Gmail Inbox</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
                 <div className="relative">
                   <KeyRound className="w-4 h-4 text-neutral-500 absolute left-3.5 top-3.5" />
                   <input
@@ -571,6 +666,42 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
                     className="w-full bg-neutral-950 border border-neutral-700 rounded-xl pl-10 pr-4 py-3 text-sm text-white font-mono tracking-widest focus:outline-none focus:border-amber-500"
                   />
                 </div>
+                <p className="text-[11px] text-neutral-400 mt-1.5">
+                  Check your Gmail inbox or spam folder for the one-time reset code.
+                </p>
+
+                {resetOtpHint && (
+                  <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs flex items-center justify-between text-amber-300">
+                    <span className="flex items-center gap-1.5">
+                      <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Preview Code: <strong className="font-mono text-amber-400 tracking-widest">{resetOtpHint}</strong></span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setResetCode(resetOtpHint)}
+                      className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-[11px] transition-colors cursor-pointer"
+                    >
+                      Auto Fill
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Resend Reset Code Button & Timer */}
+              <div className="flex items-center justify-between pt-1 pb-1">
+                <span className="text-xs text-neutral-400">Didn't receive the code?</span>
+                <button
+                  id="resend-reset-otp-btn"
+                  type="button"
+                  disabled={resetOtpCooldown > 0 || loading}
+                  onClick={handleResendResetOtp}
+                  className="text-xs font-semibold text-amber-400 hover:text-amber-300 disabled:text-neutral-500 disabled:cursor-not-allowed flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                  <span>
+                    {resetOtpCooldown > 0 ? `Resend Code in ${resetOtpCooldown}s` : 'Resend Code to Gmail'}
+                  </span>
+                </button>
               </div>
 
               <div>

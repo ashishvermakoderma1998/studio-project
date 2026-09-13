@@ -59,6 +59,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onOpenBooking, onN
     }
   }, [user]);
 
+  useEffect(() => {
+    const handleOpenSecurity = () => {
+      setIsSecurityModalOpen(true);
+    };
+    window.addEventListener('open-account-security-modal', handleOpenSecurity);
+    return () => window.removeEventListener('open-account-security-modal', handleOpenSecurity);
+  }, []);
+
   if (!user) {
     return (
       <div id="dashboard-unauth" className="min-h-screen bg-neutral-950 text-neutral-100 pt-32 pb-20 px-4 text-center">

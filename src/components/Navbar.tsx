@@ -303,6 +303,20 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate, onOpenB
                       <span>My Bookings & Receipts</span>
                     </button>
 
+                    <button
+                      id="user-menu-security-btn"
+                      onClick={() => {
+                        handleNavClick('dashboard');
+                        setTimeout(() => {
+                          window.dispatchEvent(new CustomEvent('open-account-security-modal'));
+                        }, 100);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-neutral-200 hover:text-amber-300 hover:bg-neutral-800 rounded-lg transition-colors text-left"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-amber-400" />
+                      <span>Account Security & 2FA</span>
+                    </button>
+
                     {isAdmin && (
                       <button
                         id="user-menu-admin-btn"

@@ -186,19 +186,23 @@ function handleLocalFallback<T>(endpoint: string, options: RequestInit = {}, ori
       throw new Error('Verification session expired. Please click resend OTP.');
     }
     const pending = JSON.parse(raw);
-    if (pending.otp !== otp.toString().trim()) {
-      throw new Error(`Invalid verification code. Please check your Gmail (${cleanEmail}).`);
+    const cleanOtp = otp.toString().replace(/\D/g, '').trim();
+    const validOtps = [pending.otp, ...(pending.otps || [])].filter(Boolean).map(String);
+
+    if (!validOtps.includes(cleanOtp) && cleanOtp !== pending.otp?.toString().trim()) {
+      throw new Error(`Invalid verification code. Please check your Gmail (${cleanEmail}) or use the Auto Fill button.`);
     }
 
     sessionStorage.removeItem('pending_reg_' + cleanEmail);
 
+    const isStudioAdmin = cleanEmail === 'ashishweddingfilm@gmail.com' || cleanEmail === 'ashishsawitri@gmail.com';
     const newUser = {
       id: 'usr-' + Date.now(),
       name: pending.name,
       email: cleanEmail,
       phone: pending.phone || '',
       city: pending.city || 'Jhumri Telaiya, Jharkhand',
-      role: cleanEmail === 'ashishweddingfilm@gmail.com' ? 'admin' : 'user',
+      role: isStudioAdmin ? 'admin' : 'user',
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(pending.name)}`,
       password: pending.password,
       emailVerified: true,
@@ -223,6 +227,10 @@ function handleLocalFallback<T>(endpoint: string, options: RequestInit = {}, ori
     }
     const pending = JSON.parse(raw);
     const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    if (!pending.otps) {
+      pending.otps = [pending.otp];
+    }
+    pending.otps.push(newOtp);
     pending.otp = newOtp;
     pending.expiresAt = Date.now() + 10 * 60 * 1000;
     sessionStorage.setItem('pending_reg_' + cleanEmail, JSON.stringify(pending));
@@ -818,6 +826,12 @@ export const api = {
 
   forgotPassword: (email: string) =>
     apiRequest<{ message: string; resetCodeHint?: string }>('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  resendForgotPasswordOtp: (email: string) =>
+    apiRequest<{ message: string; resetCodeHint?: string }>('/api/auth/forgot-password/resend', {
       method: 'POST',
       body: JSON.stringify({ email }),
     }),

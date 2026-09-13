@@ -38,7 +38,10 @@ import {
   HelpCircle,
   ArrowRight,
   Smartphone,
-  Wallet
+  Wallet,
+  Facebook,
+  Instagram,
+  Youtube
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -83,7 +86,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
     accountHolder: 'Ashish Kumar',
     razorpayKeyId: 'rzp_test_ashish_studio',
     studioLocation: 'Gumo, Kharitand, Jhumri Telaiya, Koderma, Jharkhand',
-    currency: 'INR'
+    currency: 'INR',
+    facebookUrl: 'https://www.facebook.com/ashishweddingfilm',
+    instagramUrl: 'https://www.instagram.com/ashishweddingfilm',
+    youtubeUrl: 'https://www.youtube.com/@ashishweddingfilm'
   });
   const [isSavingPayments, setIsSavingPayments] = useState(false);
   const [copiedUpiPreview, setCopiedUpiPreview] = useState(false);
@@ -1172,6 +1178,69 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
                   </div>
                 </div>
 
+                {/* Studio Official Social Media Links Section */}
+                <div className="p-6 rounded-3xl bg-neutral-900/90 border border-neutral-800 space-y-4">
+                  <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Facebook className="w-4 h-4 text-blue-400" />
+                      <span>Studio Social Media Links (सोशल मीडिया पेज लिंक्स)</span>
+                    </h4>
+                    <span className="text-[11px] text-neutral-400">Footer & Contact Pages Links</span>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs text-neutral-300 font-bold flex items-center gap-1.5 mb-1.5">
+                        <Facebook className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Official Facebook Page URL</span>
+                      </label>
+                      <input
+                        id="admin-settings-facebook-url"
+                        type="url"
+                        value={paymentSettings.facebookUrl || ''}
+                        onChange={(e) => setPaymentSettings({ ...paymentSettings, facebookUrl: e.target.value })}
+                        placeholder="https://www.facebook.com/ashishweddingfilm"
+                        className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500"
+                      />
+                      <span className="text-[10px] text-neutral-500 mt-1 block">
+                        Direct link to Ashish Wedding Film Facebook page: https://www.facebook.com/ashishweddingfilm
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs text-neutral-300 font-bold flex items-center gap-1.5 mb-1.5">
+                          <Instagram className="w-3.5 h-3.5 text-pink-400" />
+                          <span>Instagram Profile URL</span>
+                        </label>
+                        <input
+                          id="admin-settings-instagram-url"
+                          type="url"
+                          value={paymentSettings.instagramUrl || ''}
+                          onChange={(e) => setPaymentSettings({ ...paymentSettings, instagramUrl: e.target.value })}
+                          placeholder="https://www.instagram.com/ashishweddingfilm"
+                          className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-neutral-300 font-bold flex items-center gap-1.5 mb-1.5">
+                          <Youtube className="w-3.5 h-3.5 text-red-400" />
+                          <span>YouTube Channel URL</span>
+                        </label>
+                        <input
+                          id="admin-settings-youtube-url"
+                          type="url"
+                          value={paymentSettings.youtubeUrl || ''}
+                          onChange={(e) => setPaymentSettings({ ...paymentSettings, youtubeUrl: e.target.value })}
+                          placeholder="https://www.youtube.com/@ashishweddingfilm"
+                          className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-end gap-3 pt-2">
                   <button
                     type="submit"
@@ -1179,7 +1248,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
                     className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-neutral-950 font-extrabold text-sm shadow-xl shadow-amber-500/20 hover:shadow-amber-500/35 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     <Save className="w-4 h-4" />
-                    <span>{isSavingPayments ? 'Saving Account Details...' : 'Save Bank & Payment Settings'}</span>
+                    <span>{isSavingPayments ? 'Saving Settings...' : 'Save Settings & Social Links'}</span>
                   </button>
                 </div>
               </form>

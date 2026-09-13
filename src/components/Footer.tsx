@@ -10,10 +10,11 @@ import {
   Clock, 
   Heart, 
   ShieldCheck, 
-  Calendar,
-  Sparkles,
+  Calendar, 
+  Sparkles, 
   MessageSquare
 } from 'lucide-react';
+import { STUDIO_SOCIAL_LINKS } from '../data/studioData';
 
 interface FooterProps {
   onNavigate: (page: string, param?: string) => void;
@@ -95,31 +96,34 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenBooking }) => 
               </p>
               <div className="flex items-center gap-3">
                 <a
-                  id="footer-instagram-link"
-                  href="https://instagram.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Instagram"
-                  className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-pink-500/50 hover:bg-pink-500/10 text-pink-400 flex items-center justify-center transition-all hover:scale-110"
-                >
-                  <Instagram className="w-5 h-5" />
-                </a>
-                <a
                   id="footer-facebook-link"
-                  href="https://facebook.com"
+                  href={STUDIO_SOCIAL_LINKS.facebook}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="Facebook"
+                  aria-label="Facebook - Ashish Wedding Film Studio"
+                  title="Official Facebook Page: facebook.com/ashishweddingfilm"
                   className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-blue-500/50 hover:bg-blue-500/10 text-blue-400 flex items-center justify-center transition-all hover:scale-110"
                 >
                   <Facebook className="w-5 h-5" />
                 </a>
                 <a
-                  id="footer-youtube-link"
-                  href="https://youtube.com"
+                  id="footer-instagram-link"
+                  href={STUDIO_SOCIAL_LINKS.instagram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="YouTube"
+                  aria-label="Instagram - Ashish Wedding Film Studio"
+                  title="Official Instagram: instagram.com/ashishweddingfilm"
+                  className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-pink-500/50 hover:bg-pink-500/10 text-pink-400 flex items-center justify-center transition-all hover:scale-110"
+                >
+                  <Instagram className="w-5 h-5" />
+                </a>
+                <a
+                  id="footer-youtube-link"
+                  href={STUDIO_SOCIAL_LINKS.youtube}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="YouTube - Ashish Wedding Film Studio"
+                  title="Official YouTube 4K: youtube.com/@ashishweddingfilm"
                   className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-red-500/50 hover:bg-red-500/10 text-red-400 flex items-center justify-center transition-all hover:scale-110"
                 >
                   <Youtube className="w-5 h-5" />
