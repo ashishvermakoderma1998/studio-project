@@ -19,6 +19,9 @@ export interface UserRecord extends User {
   passwordHash: string;
   tokenVersion?: number;
   emailVerified?: boolean;
+  phoneVerified?: boolean;
+  phoneVerificationOtpHash?: string;
+  phoneVerificationExpiry?: number;
   verificationTokenHash?: string;
   verificationTokenExpiry?: number;
   resetTokenHash?: string;
@@ -37,6 +40,11 @@ export interface PendingRegistration {
   passwordHash: string;
   otpHash: string;
   otpHashes?: string[];
+  phoneOtpHash?: string;
+  phoneOtpHashes?: string[];
+  phoneOtpHint?: string;
+  phoneVerified?: boolean;
+  maskedPhone?: string;
   expiresAt: number;
   attempts: number;
   otpHint?: string;

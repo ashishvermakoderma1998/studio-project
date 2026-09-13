@@ -10,6 +10,7 @@ export interface User {
   city?: string;
   createdAt: string;
   emailVerified?: boolean;
+  phoneVerified?: boolean;
   mfaEnabled?: boolean;
   lastLoginAt?: string;
   lastLoginIp?: string;
@@ -21,6 +22,9 @@ export interface AuthResponse {
   mfaRequired?: boolean;
   mfaChallengeToken?: string;
   message?: string;
+  phoneOtpDispatched?: boolean;
+  phoneOtpHint?: string;
+  maskedPhone?: string;
 }
 
 export interface SecurityAuditLog {
@@ -34,9 +38,13 @@ export interface SecurityAuditLog {
     | 'PASSWORD_RESET_REQUEST'
     | 'PASSWORD_RESET_SUCCESS'
     | 'EMAIL_VERIFIED'
+    | 'PHONE_VERIFIED'
     | 'GMAIL_OTP_DISPATCHED'
     | 'GMAIL_OTP_VERIFIED'
     | 'GMAIL_OTP_FAILED'
+    | 'PHONE_OTP_DISPATCHED'
+    | 'PHONE_OTP_VERIFIED'
+    | 'PHONE_OTP_FAILED'
     | 'MFA_ENABLED'
     | 'MFA_DISABLED'
     | 'MFA_CHALLENGE_SUCCESS'
