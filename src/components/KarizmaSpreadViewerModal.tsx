@@ -41,12 +41,32 @@ export const KarizmaSpreadViewerModal: React.FC<KarizmaSpreadViewerModalProps> =
   const [isAddingSpread, setIsAddingSpread] = useState(false);
   const [newSpreadUrl, setNewSpreadUrl] = useState('');
   const [uploadingSpread, setUploadingSpread] = useState(false);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   useEffect(() => {
     setCurrentSpreadIndex(0);
     setIsZoomed(false);
     setIsAddingSpread(false);
   }, [album]);
+
+  // Touch Swipe Handlers for mobile & tablet
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diffX = touchStartX - touchEndX;
+
+    // Minimum swipe threshold 50px
+    if (diffX > 50) {
+      handleNext(); // swipe left -> next page
+    } else if (diffX < -50) {
+      handlePrev(); // swipe right -> prev page
+    }
+    setTouchStartX(null);
+  };
 
   // Keyboard navigation
   useEffect(() => {
@@ -150,54 +170,55 @@ export const KarizmaSpreadViewerModal: React.FC<KarizmaSpreadViewerModalProps> =
       <div className="relative w-full max-w-6xl h-full max-h-[96vh] flex flex-col bg-neutral-900 border border-amber-500/30 rounded-3xl overflow-hidden shadow-2xl shadow-black">
         
         {/* Top Control Bar */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-neutral-950 border-b border-neutral-800 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+        <div className="flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3 bg-neutral-950 border-b border-neutral-800 shrink-0 gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
               <BookOpen className="w-4 h-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-bold text-white font-serif truncate max-w-[200px] sm:max-w-md">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h3 className="text-xs sm:text-base font-bold text-white font-serif truncate max-w-[120px] xs:max-w-[180px] sm:max-w-xs md:max-w-md">
                   {album.title}
                 </h3>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 hidden sm:inline-block">
+                <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
                   {album.albumType}
                 </span>
               </div>
-              <p className="text-[11px] text-neutral-400">
-                Couple: <span className="text-white font-medium">{album.coupleName}</span> • 12x36 Seamless Layflat
+              <p className="text-[10px] sm:text-[11px] text-neutral-400 truncate">
+                Couple: <span className="text-white font-medium">{album.coupleName}</span> • 12x36 Layflat
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Zoom Toggle */}
             <button
               onClick={() => setIsZoomed(!isZoomed)}
               title={isZoomed ? 'Standard View' : 'Zoom In Details'}
-              className="p-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors"
+              className="p-1.5 sm:p-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors"
+              aria-label="Toggle Zoom"
             >
               {isZoomed ? <ZoomOut className="w-4 h-4" /> : <ZoomIn className="w-4 h-4" />}
             </button>
 
             {/* Admin Controls */}
             {isAdmin ? (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5">
                 <button
                   id="spread-add-sheet-btn"
                   onClick={() => setIsAddingSpread(!isAddingSpread)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-colors"
+                  className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] sm:text-xs font-bold transition-colors"
                   title="Upload New Spread Image to this Album"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>+ Add Sheet</span>
+                  <span className="hidden xs:inline">+ Add Sheet</span>
                 </button>
 
                 {spreads.length > 1 && (
                   <button
                     id="spread-delete-sheet-btn"
                     onClick={handleDeleteCurrentSpread}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-800/50 text-red-300 text-xs font-bold transition-colors"
+                    className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-800/50 text-red-300 text-[11px] sm:text-xs font-bold transition-colors"
                     title="Delete Current Sheet"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -215,7 +236,7 @@ export const KarizmaSpreadViewerModal: React.FC<KarizmaSpreadViewerModalProps> =
                     showToast(e.message || 'Login failed', 'error');
                   }
                 }}
-                className="text-[11px] text-amber-300 hover:text-white px-2.5 py-1 rounded-lg border border-neutral-800 bg-neutral-900 hover:border-amber-500/40 transition-colors"
+                className="text-[10px] sm:text-[11px] text-amber-300 hover:text-white px-2 py-1 rounded-lg border border-neutral-800 bg-neutral-900 hover:border-amber-500/40 transition-colors hidden xs:inline-block"
                 title="Admin 1-Click Login"
               >
                 Owner Login
@@ -225,7 +246,7 @@ export const KarizmaSpreadViewerModal: React.FC<KarizmaSpreadViewerModalProps> =
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="p-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors ml-2"
+              className="p-1.5 sm:p-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors ml-1 sm:ml-2"
               aria-label="Close Viewer"
             >
               <X className="w-5 h-5" />
@@ -274,33 +295,37 @@ export const KarizmaSpreadViewerModal: React.FC<KarizmaSpreadViewerModalProps> =
         )}
 
         {/* Main Spread Center Display (Layflat 12x36 Book Feel) */}
-        <div className="relative flex-1 bg-neutral-950/80 flex items-center justify-center p-2 sm:p-6 overflow-hidden select-none">
+        <div 
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="relative flex-1 bg-neutral-950/80 flex items-center justify-center p-2 sm:p-6 overflow-hidden select-none min-h-[260px] sm:min-h-[380px]"
+        >
           
           {/* Previous Arrow */}
           <button
             onClick={handlePrev}
-            className="absolute left-2 sm:left-4 z-20 w-10 sm:w-12 h-10 sm:h-12 rounded-full bg-neutral-900/80 hover:bg-neutral-800 text-neutral-200 hover:text-white border border-neutral-700 shadow-xl flex items-center justify-center backdrop-blur-sm transition-transform hover:scale-105"
+            className="absolute left-1.5 sm:left-4 z-20 w-9 sm:w-12 h-9 sm:h-12 rounded-full bg-neutral-900/80 hover:bg-neutral-800 text-neutral-200 hover:text-white border border-neutral-700 shadow-xl flex items-center justify-center backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
             aria-label="Previous Sheet"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
           {/* Next Arrow */}
           <button
             onClick={handleNext}
-            className="absolute right-2 sm:right-4 z-20 w-10 sm:w-12 h-10 sm:h-12 rounded-full bg-neutral-900/80 hover:bg-neutral-800 text-neutral-200 hover:text-white border border-neutral-700 shadow-xl flex items-center justify-center backdrop-blur-sm transition-transform hover:scale-105"
+            className="absolute right-1.5 sm:right-4 z-20 w-9 sm:w-12 h-9 sm:h-12 rounded-full bg-neutral-900/80 hover:bg-neutral-800 text-neutral-200 hover:text-white border border-neutral-700 shadow-xl flex items-center justify-center backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
             aria-label="Next Sheet"
           >
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
           {/* Book Canvas Container */}
-          <div className="relative w-full max-w-5xl h-full flex items-center justify-center">
+          <div className="relative w-full max-w-5xl h-full flex items-center justify-center px-6 sm:px-12">
             
             {/* The 12x36 Panoramic Layflat Spread */}
             <div 
-              className={`relative max-w-full max-h-full rounded-2xl overflow-hidden shadow-2xl border-2 border-neutral-800 transition-all duration-300 ${
-                isZoomed ? 'scale-125 cursor-grab active:cursor-grabbing' : 'scale-100'
+              className={`relative max-w-full max-h-[50vh] sm:max-h-[62vh] md:max-h-[68vh] rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border border-neutral-800 sm:border-2 transition-all duration-300 ${
+                isZoomed ? 'scale-110 sm:scale-125 cursor-grab active:cursor-grabbing' : 'scale-100'
               }`}
               style={{
                 aspectRatio: '16/9',
@@ -316,16 +341,16 @@ export const KarizmaSpreadViewerModal: React.FC<KarizmaSpreadViewerModalProps> =
 
               {/* Realistic Layflat Center Fold Shadow Line */}
               <div 
-                className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-8 pointer-events-none opacity-40 bg-gradient-to-r from-transparent via-black to-transparent"
+                className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-4 sm:w-8 pointer-events-none opacity-40 bg-gradient-to-r from-transparent via-black to-transparent"
                 title="180 Degree Layflat Center Crease"
               />
 
               {/* Page Number Overlay Badges */}
-              <div className="absolute bottom-3 left-4 px-2.5 py-1 rounded bg-black/70 backdrop-blur-md text-[10px] text-neutral-300 font-mono border border-white/10 pointer-events-none">
+              <div className="absolute bottom-2 sm:bottom-3 left-2.5 sm:left-4 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded bg-black/70 backdrop-blur-md text-[9px] sm:text-[10px] text-neutral-300 font-mono border border-white/10 pointer-events-none">
                 {currentSpreadIndex === 0 ? 'Cover Sheet' : `Sheet ${currentSpreadIndex} (L)`}
               </div>
 
-              <div className="absolute bottom-3 right-4 px-2.5 py-1 rounded bg-black/70 backdrop-blur-md text-[10px] text-neutral-300 font-mono border border-white/10 pointer-events-none">
+              <div className="absolute bottom-2 sm:bottom-3 right-2.5 sm:right-4 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded bg-black/70 backdrop-blur-md text-[9px] sm:text-[10px] text-neutral-300 font-mono border border-white/10 pointer-events-none">
                 {currentSpreadIndex === 0 ? 'Back' : `Sheet ${currentSpreadIndex} (R)`}
               </div>
             </div>
@@ -333,24 +358,29 @@ export const KarizmaSpreadViewerModal: React.FC<KarizmaSpreadViewerModalProps> =
           </div>
 
           {/* Spread Index Counter Banner */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-3.5 py-1 rounded-full bg-neutral-900/90 border border-neutral-700 text-xs font-semibold text-amber-400 backdrop-blur-md shadow-lg flex items-center gap-2">
+          <div className="absolute top-2 sm:top-4 left-1/2 -translate-x-1/2 z-10 px-2.5 sm:px-3.5 py-1 rounded-full bg-neutral-900/90 border border-neutral-700 text-[10px] sm:text-xs font-semibold text-amber-400 backdrop-blur-md shadow-lg flex items-center gap-1.5 sm:gap-2 whitespace-nowrap">
             <span>Sheet {currentSpreadIndex + 1} of {spreads.length}</span>
             <span className="text-neutral-500">•</span>
-            <span className="text-neutral-300">12x36 Layflat Spread</span>
+            <span className="text-neutral-300">12x36 Layflat</span>
+          </div>
+
+          {/* Mobile Swipe Hint */}
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 sm:hidden text-[9px] text-neutral-400 bg-black/60 px-2 py-0.5 rounded-full border border-white/5 pointer-events-none">
+            ← Swipe to flip sheets →
           </div>
 
         </div>
 
         {/* Bottom Thumbnail Strip & Album Information */}
-        <div className="bg-neutral-950 border-t border-neutral-800 p-3 sm:p-4 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="bg-neutral-950 border-t border-neutral-800 p-2.5 sm:p-4 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
           
           {/* Thumbnails Carousel */}
-          <div className="flex items-center gap-2 overflow-x-auto max-w-full sm:max-w-xl pb-1 sm:pb-0 no-scrollbar">
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto w-full sm:max-w-xl pb-1 sm:pb-0 no-scrollbar">
             {spreads.map((spr, idx) => (
               <button
                 key={idx}
                 onClick={() => { setCurrentSpreadIndex(idx); setIsZoomed(false); }}
-                className={`relative w-16 sm:w-20 h-10 sm:h-12 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                className={`relative w-14 sm:w-20 h-9 sm:h-12 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
                   currentSpreadIndex === idx
                     ? 'border-amber-500 scale-105 shadow-md shadow-amber-500/20'
                     : 'border-neutral-800 opacity-60 hover:opacity-100'
@@ -361,7 +391,7 @@ export const KarizmaSpreadViewerModal: React.FC<KarizmaSpreadViewerModalProps> =
                   alt={`Thumbnail ${idx + 1}`}
                   className="w-full h-full object-cover"
                 />
-                <span className="absolute bottom-0.5 right-1 text-[9px] font-bold text-white bg-black/70 px-1 rounded">
+                <span className="absolute bottom-0.5 right-1 text-[8px] sm:text-[9px] font-bold text-white bg-black/70 px-1 rounded">
                   {idx + 1}
                 </span>
               </button>
@@ -369,15 +399,15 @@ export const KarizmaSpreadViewerModal: React.FC<KarizmaSpreadViewerModalProps> =
           </div>
 
           {/* Action CTAs: WhatsApp & Book */}
-          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-stretch sm:justify-end">
             <a
               href={`https://wa.me/918709017294?text=Hello%20Ashish%20Wedding%20Film%20Studio,%20I%20saw%20the%20${encodeURIComponent(album.title)}%20(${encodeURIComponent(album.albumType)})%20Karizma%20Album%20on%20your%20website%20and%20would%20like%20to%20order/inquire%20for%20our%20wedding.`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-900/30 transition-all"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] sm:text-xs shadow-lg shadow-emerald-900/30 transition-all text-center"
             >
-              <MessageCircle className="w-4 h-4 fill-white" />
-              <span>Inquire on WhatsApp</span>
+              <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white" />
+              <span>WhatsApp</span>
             </a>
 
             {onOpenBooking && (
@@ -386,7 +416,7 @@ export const KarizmaSpreadViewerModal: React.FC<KarizmaSpreadViewerModalProps> =
                   onClose();
                   onOpenBooking();
                 }}
-                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all"
+                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-[11px] sm:text-xs shadow-lg shadow-amber-500/20 transition-all text-center whitespace-nowrap"
               >
                 Book Album Design
               </button>

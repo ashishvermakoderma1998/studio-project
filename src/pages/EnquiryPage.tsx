@@ -147,7 +147,7 @@ Client Requirements: ${message}
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Ankit Singhania"
+                    placeholder="Enter your full name"
                     className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-4 py-3 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
@@ -161,7 +161,7 @@ Client Requirements: ${message}
                     required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 87090 17294"
+                    placeholder="Enter your mobile number"
                     className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-4 py-3 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
@@ -176,7 +176,7 @@ Client Requirements: ${message}
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@gmail.com"
+                    placeholder="Enter your email address"
                     className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-4 py-3 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>

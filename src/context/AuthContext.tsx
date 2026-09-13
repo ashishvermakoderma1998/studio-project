@@ -5,19 +5,24 @@ import { api, authStorage } from '../api/client';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (emailOrCreds: string | { email: string; password: string }, password?: string) => Promise<User>;
+  login: (emailOrCreds: string | { email: string; password: string }, password?: string) => Promise<{ user?: User; mfaRequired?: boolean; mfaChallengeToken?: string; message?: string; otpHint?: string }>;
+  completeMfaLogin: (mfaChallengeToken: string, code: string) => Promise<User>;
+  sendRegisterOtp: (payload: { name: string; email: string; phone?: string; password: string; city?: string }) => Promise<{ message: string; email: string; expiresInSeconds: number; otpHint?: string }>;
+  verifyRegisterOtp: (payload: { email: string; otp: string }) => Promise<User>;
+  resendRegisterOtp: (email: string) => Promise<{ message: string; otpHint?: string }>;
   register: (
     nameOrPayload: string | { name: string; email: string; phone?: string; password: string; city?: string },
     email?: string,
     phone?: string,
     password?: string,
     city?: string
-  ) => Promise<User>;
-  loginWithDemoAdmin: () => Promise<User>;
-  loginWithDemoUser: () => Promise<User>;
-  logout: () => void;
+  ) => Promise<{ user: User; verificationCodeHint?: string }>;
+  loginWithDemoAdmin: () => Promise<any>;
+  loginWithDemoUser: () => Promise<any>;
+  logout: () => Promise<void>;
   updateUser: (updated: User) => void;
   refreshUser: () => Promise<void>;
+  setSession: (token: string, user: User) => void;
   isAdmin: boolean;
 }
 
@@ -62,9 +67,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const res = await api.login(payload);
-    authStorage.setToken(res.token);
-    setUser(res.user);
-    return res.user;
+    if (res.mfaRequired && res.mfaChallengeToken) {
+      return {
+        mfaRequired: true,
+        mfaChallengeToken: res.mfaChallengeToken
+      };
+    }
+
+    if (res.token && res.user) {
+      authStorage.setToken(res.token);
+      setUser(res.user);
+      return { user: res.user };
+    }
+
+    throw new Error('Login failed: invalid response from server');
+  };
+
+  const completeMfaLogin = async (mfaChallengeToken: string, code: string) => {
+    const res = await api.loginMfaChallenge({ mfaChallengeToken, code });
+    if (res.token && res.user) {
+      authStorage.setToken(res.token);
+      setUser(res.user);
+      return res.user;
+    }
+    throw new Error('MFA verification failed');
+  };
+
+  const sendRegisterOtp = async (payload: { name: string; email: string; phone?: string; password: string; city?: string }) => {
+    return await api.sendRegisterOtp(payload);
+  };
+
+  const verifyRegisterOtp = async (payload: { email: string; otp: string }) => {
+    const res = await api.verifyRegisterOtp(payload);
+    if (res.token && res.user) {
+      authStorage.setToken(res.token);
+      setUser(res.user);
+      return res.user;
+    }
+    throw new Error('Verification failed');
+  };
+
+  const resendRegisterOtp = async (email: string) => {
+    return await api.resendRegisterOtp(email);
   };
 
   const register = async (
@@ -90,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const res = await api.register(payload);
     authStorage.setToken(res.token);
     setUser(res.user);
-    return res.user;
+    return { user: res.user, verificationCodeHint: res.verificationCodeHint };
   };
 
   const loginWithDemoAdmin = async () => {
@@ -101,9 +145,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return login('rohan.client@gmail.com', 'User@1234');
   };
 
-  const logout = () => {
-    authStorage.clearToken();
-    setUser(null);
+  const logout = async () => {
+    try {
+      await api.logout();
+    } catch (e) {
+      // ignore network errors on logout
+    } finally {
+      authStorage.clearToken();
+      setUser(null);
+    }
+  };
+
+  const setSession = (token: string, newUser: User) => {
+    authStorage.setToken(token);
+    setUser(newUser);
   };
 
   const updateUser = (updated: User) => {
@@ -118,12 +173,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         loading,
         login,
+        completeMfaLogin,
+        sendRegisterOtp,
+        verifyRegisterOtp,
+        resendRegisterOtp,
         register,
         loginWithDemoAdmin,
         loginWithDemoUser,
         logout,
         updateUser,
         refreshUser,
+        setSession,
         isAdmin,
       }}
     >

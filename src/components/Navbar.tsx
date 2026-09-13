@@ -73,16 +73,16 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate, onOpenB
           <button
             id="brand-logo-btn"
             onClick={() => handleNavClick('home')}
-            className="flex items-center gap-3 text-left group"
+            className="flex items-center gap-2 sm:gap-3 text-left group min-w-0"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:scale-105 transition-transform">
-              <Camera className="w-5 h-5 text-neutral-950" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:scale-105 transition-transform shrink-0">
+              <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-neutral-950" />
             </div>
-            <div>
-              <span className="text-lg font-bold tracking-tight text-white block font-serif group-hover:text-amber-300 transition-colors">
+            <div className="min-w-0">
+              <span className="text-base sm:text-lg font-bold tracking-tight text-white block font-serif group-hover:text-amber-300 transition-colors truncate">
                 Ashish Wedding Film
               </span>
-              <span className="text-[10px] tracking-widest text-amber-400/90 uppercase block font-semibold">
+              <span className="text-[9px] sm:text-[10px] tracking-widest text-amber-400/90 uppercase block font-semibold truncate">
                 Studio • Jhumri Telaiya
               </span>
             </div>
@@ -352,20 +352,21 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate, onOpenB
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="flex items-center gap-3 lg:hidden">
+          <div className="flex items-center gap-2 sm:gap-3 lg:hidden shrink-0">
             <button
               id="mobile-book-now-top-btn"
               onClick={() => onOpenBooking()}
-              className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 text-neutral-950 text-xs font-bold shadow-md shadow-amber-500/20"
+              className="px-3 sm:px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 text-neutral-950 text-xs font-bold shadow-md shadow-amber-500/20 whitespace-nowrap"
             >
               Book Now
             </button>
             <button
               id="mobile-menu-toggle-btn"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white"
+              className="p-1.5 sm:p-2 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white"
+              aria-label="Toggle navigation menu"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
             </button>
           </div>
         </div>
@@ -375,9 +376,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate, onOpenB
       {mobileMenuOpen && (
         <div
           id="mobile-nav-drawer"
-          className="lg:hidden bg-neutral-950/98 border-b border-amber-500/20 px-4 pt-3 pb-6 space-y-3 backdrop-blur-xl animate-in slide-in-from-top duration-200"
+          className="lg:hidden bg-neutral-950/98 border-b border-amber-500/20 px-4 pt-3 pb-6 space-y-3 backdrop-blur-xl max-h-[85vh] overflow-y-auto overscroll-contain animate-in slide-in-from-top duration-200"
         >
-          <div className="grid grid-cols-2 gap-2 pb-3 border-b border-neutral-800">
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 pb-3 border-b border-neutral-800">
             <button
               onClick={() => handleNavClick('home')}
               className={`p-2.5 rounded-xl text-left text-sm font-semibold ${

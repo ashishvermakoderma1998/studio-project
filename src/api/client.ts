@@ -8,7 +8,8 @@ import {
   Review, 
   GalleryItem, 
   KarizmaAlbumItem,
-  AdminStats 
+  AdminStats,
+  PaymentSettings
 } from '../types';
 import { INITIAL_SERVICES, INITIAL_GALLERY, INITIAL_REVIEWS, INITIAL_KARIZMA_ALBUMS } from '../data/studioData';
 
@@ -165,7 +166,10 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     if (contentType.includes('application/json')) {
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data?.error || `Request failed with status ${response.status}`);
+        const error: any = new Error(data?.error || `Request failed with status ${response.status}`);
+        error.status = response.status;
+        error.data = data;
+        throw error;
       }
       return data as T;
     }
@@ -178,7 +182,11 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     const data = await response.json().catch(() => ({}));
     return data as T;
   } catch (err: any) {
-    // If backend is down or not running (e.g. VS Code pure Vite run), use seamless local mock fallback
+    // If the server responded with an error status (400, 401, 403, 409, 423, 429), rethrow so UI can display it
+    if (err?.status) {
+      throw err;
+    }
+    // If network fetch failed entirely, attempt safe local fallback
     return handleLocalFallback<T>(endpoint, options, err);
   }
 }
@@ -189,6 +197,94 @@ function handleLocalFallback<T>(endpoint: string, options: RequestInit = {}, ori
   const users: any[] = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
   const method = options.method || 'GET';
   const body = options.body ? JSON.parse(options.body as string) : {};
+
+  // Auth: Gmail OTP Send for Account Creation
+  if (endpoint === '/api/auth/register-otp/send' && method === 'POST') {
+    const { name, email, phone, password, city } = body;
+    if (!name || !email || !password) {
+      throw new Error('Name, email, and password are required');
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const existing = users.find(u => u.email.toLowerCase() === cleanEmail);
+    if (existing) {
+      throw new Error('An account with this email already exists');
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const pendingData = {
+      name: name.trim(),
+      email: cleanEmail,
+      phone: phone?.trim() || '',
+      password,
+      city: city || 'Jhumri Telaiya, Jharkhand',
+      otp,
+      expiresAt: Date.now() + 10 * 60 * 1000
+    };
+    sessionStorage.setItem('pending_reg_' + cleanEmail, JSON.stringify(pendingData));
+
+    return {
+      message: `A 6-digit verification code has been sent to your Gmail (${cleanEmail}).`,
+      email: cleanEmail,
+      expiresInSeconds: 600,
+      otpHint: otp
+    } as unknown as T;
+  }
+
+  // Auth: Gmail OTP Verify for Account Creation
+  if (endpoint === '/api/auth/register-otp/verify' && method === 'POST') {
+    const { email, otp } = body;
+    const cleanEmail = email.trim().toLowerCase();
+    const raw = sessionStorage.getItem('pending_reg_' + cleanEmail);
+    if (!raw) {
+      throw new Error('Verification session expired. Please click resend OTP.');
+    }
+    const pending = JSON.parse(raw);
+    if (pending.otp !== otp.toString().trim()) {
+      throw new Error(`Invalid verification code. Please check your Gmail (${cleanEmail}).`);
+    }
+
+    sessionStorage.removeItem('pending_reg_' + cleanEmail);
+
+    const newUser = {
+      id: 'usr-' + Date.now(),
+      name: pending.name,
+      email: cleanEmail,
+      phone: pending.phone || '',
+      city: pending.city || 'Jhumri Telaiya, Jharkhand',
+      role: cleanEmail === 'ashishweddingfilm@gmail.com' ? 'admin' : 'user',
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(pending.name)}`,
+      password: pending.password,
+      emailVerified: true,
+      createdAt: new Date().toISOString()
+    };
+
+    users.push(newUser);
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+
+    const simulatedToken = 'local-tok-' + btoa(cleanEmail) + '-' + Date.now();
+    const { password: _, ...safeUser } = newUser;
+    return { message: 'Account created successfully', token: simulatedToken, user: safeUser } as unknown as T;
+  }
+
+  // Auth: Gmail OTP Resend
+  if (endpoint === '/api/auth/register-otp/resend' && method === 'POST') {
+    const { email } = body;
+    const cleanEmail = email.trim().toLowerCase();
+    const raw = sessionStorage.getItem('pending_reg_' + cleanEmail);
+    if (!raw) {
+      throw new Error('No pending registration found. Please submit registration again.');
+    }
+    const pending = JSON.parse(raw);
+    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    pending.otp = newOtp;
+    pending.expiresAt = Date.now() + 10 * 60 * 1000;
+    sessionStorage.setItem('pending_reg_' + cleanEmail, JSON.stringify(pending));
+
+    return {
+      message: `A fresh 6-digit verification code has been dispatched to ${cleanEmail}`,
+      otpHint: newOtp
+    } as unknown as T;
+  }
 
   // Auth: Register
   if (endpoint === '/api/auth/register' && method === 'POST') {
@@ -206,7 +302,7 @@ function handleLocalFallback<T>(endpoint: string, options: RequestInit = {}, ori
       id: 'usr-' + Date.now(),
       name: name.trim(),
       email: cleanEmail,
-      phone: phone || '+91 87090 17294',
+      phone: phone?.trim() || '',
       city: city || 'Jhumri Telaiya, Jharkhand',
       role: cleanEmail === 'ashishweddingfilm@gmail.com' ? 'admin' : 'user',
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
@@ -474,8 +570,8 @@ function handleLocalFallback<T>(endpoint: string, options: RequestInit = {}, ori
         bookingNumber: 'AWF-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000),
         userId: body.userId || 'usr-demo-client',
         userName: body.userName || 'Client',
-        userEmail: body.userEmail || 'client@example.com',
-        userPhone: body.userPhone || '+91 87090 17294',
+        userEmail: body.userEmail || '',
+        userPhone: body.userPhone || '',
         serviceId: body.serviceId || 'srv-wedding-photo',
         serviceTitle: body.serviceTitle || 'Wedding Photography',
         servicePrice: body.servicePrice || 25000,
@@ -582,9 +678,9 @@ function handleLocalFallback<T>(endpoint: string, options: RequestInit = {}, ori
     if (!id && method === 'POST') {
       const newEnquiry: Enquiry = {
         id: 'enq-' + Date.now(),
-        name: body.name || 'Visitor',
-        email: body.email || 'visitor@gmail.com',
-        phone: body.phone || '+91 87090 17294',
+        name: body.name || 'Client',
+        email: body.email || '',
+        phone: body.phone || '',
         service: body.service || 'Royal Wedding Cinematography',
         eventDate: body.eventDate || '',
         message: body.message || '',
@@ -687,17 +783,82 @@ function handleLocalFallback<T>(endpoint: string, options: RequestInit = {}, ori
 }
 
 export const api = {
-  // Auth
+  // Auth - Gmail OTP Account Creation
+  sendRegisterOtp: (payload: { name: string; email: string; phone?: string; password: string; city?: string }) =>
+    apiRequest<{ message: string; email: string; expiresInSeconds: number; otpHint?: string }>('/api/auth/register-otp/send', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  verifyRegisterOtp: (payload: { email: string; otp: string }) =>
+    apiRequest<AuthResponse>('/api/auth/register-otp/verify', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  resendRegisterOtp: (email: string) =>
+    apiRequest<{ message: string; otpHint?: string }>('/api/auth/register-otp/resend', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  // Auth - Legacy Register
   register: (payload: { name: string; email: string; phone?: string; password: string; city?: string }) =>
-    apiRequest<AuthResponse>('/api/auth/register', {
+    apiRequest<AuthResponse & { verificationCodeHint?: string }>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
 
   login: (payload: { email: string; password: string }) =>
-    apiRequest<AuthResponse>('/api/auth/login', {
+    apiRequest<AuthResponse & { mfaRequired?: boolean; mfaChallengeToken?: string }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+
+  loginMfaChallenge: (payload: { mfaChallengeToken: string; code: string }) =>
+    apiRequest<AuthResponse & { recoveryUsed?: boolean }>('/api/auth/mfa/challenge', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  setupMfa: (currentPassword: string) =>
+    apiRequest<{ secret: string; otpauthUrl: string; recoveryCodes: string[] }>('/api/auth/mfa/setup', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword }),
+    }),
+
+  verifyMfa: (code: string) =>
+    apiRequest<{ message: string; mfaEnabled: boolean }>('/api/auth/mfa/verify', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }),
+
+  disableMfa: (payload: { currentPassword: string; code?: string }) =>
+    apiRequest<{ message: string }>('/api/auth/mfa/disable', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  verifyEmail: (payload: { email: string; code: string }) =>
+    apiRequest<{ message: string; user: User }>('/api/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  resendVerification: (email: string) =>
+    apiRequest<{ message: string; verificationCodeHint?: string }>('/api/auth/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  logout: () =>
+    apiRequest<{ message: string }>('/api/auth/logout', {
+      method: 'POST',
+    }),
+
+  revokeAllSessions: () =>
+    apiRequest<{ message: string }>('/api/auth/revoke-all-sessions', {
+      method: 'POST',
     }),
 
   getMe: () => apiRequest<{ user: User }>('/api/auth/me'),
@@ -709,16 +870,30 @@ export const api = {
     }),
 
   forgotPassword: (email: string) =>
-    apiRequest<{ message: string; simulatedResetToken?: string }>('/api/auth/forgot-password', {
+    apiRequest<{ message: string; resetCodeHint?: string }>('/api/auth/forgot-password', {
       method: 'POST',
       body: JSON.stringify({ email }),
     }),
 
-  resetPassword: (payload: { email: string; newPassword: string; resetToken?: string }) =>
+  resetPassword: (payload: { email: string; code: string; newPassword: string }) =>
     apiRequest<{ message: string }>('/api/auth/reset-password', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+
+  // Security Audit (Admin)
+  getSecurityLogs: () =>
+    apiRequest<{
+      logs: any[];
+      stats: {
+        totalEvents: number;
+        criticalEventsCount: number;
+        warningEventsCount: number;
+        mfaEnabledUsers: number;
+        verifiedUsers: number;
+        activeProtections: Record<string, string>;
+      };
+    }>('/api/admin/security/logs'),
 
   // Services
   getServices: () => apiRequest<Service[]>('/api/services'),
@@ -739,13 +914,50 @@ export const api = {
     }),
 
   // Bookings
-  getBookings: () => apiRequest<Booking[]>('/api/bookings'),
+  getBookings: async () => {
+    try {
+      const res = await apiRequest<Booking[]>('/api/bookings');
+      // Merge with local storage cache so no offline/client bookings are missed
+      try {
+        const localBookings: Booking[] = JSON.parse(localStorage.getItem(BOOKINGS_STORAGE_KEY) || '[]');
+        const existingIds = new Set((res || []).map((b) => b.id));
+        const combined = Array.isArray(res) ? [...res] : [];
+        for (const b of localBookings) {
+          if (!existingIds.has(b.id)) {
+            combined.push(b);
+          }
+        }
+        localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(combined));
+        return combined;
+      } catch {
+        return res || [];
+      }
+    } catch (err) {
+      return handleLocalFallback<Booking[]>('/api/bookings', { method: 'GET' }, err);
+    }
+  },
   getBookingById: (id: string) => apiRequest<Booking>(`/api/bookings/${id}`),
-  createBooking: (payload: any) =>
-    apiRequest<Booking>('/api/bookings', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
+  createBooking: async (payload: any) => {
+    try {
+      const res = await apiRequest<Booking>('/api/bookings', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      // Synchronize in local storage cache
+      try {
+        const localBookings: Booking[] = JSON.parse(localStorage.getItem(BOOKINGS_STORAGE_KEY) || '[]');
+        if (!localBookings.some((b) => b.id === res.id)) {
+          localBookings.unshift(res);
+          localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(localBookings));
+        }
+      } catch {
+        // ignore
+      }
+      return res;
+    } catch (err) {
+      return handleLocalFallback<Booking>('/api/bookings', { method: 'POST', body: JSON.stringify(payload) }, err);
+    }
+  },
   updateBookingStatus: (id: string, payload: { bookingStatus?: string; paymentStatus?: string; notes?: string }) =>
     apiRequest<Booking>(`/api/bookings/${id}/status`, {
       method: 'PUT',
@@ -763,17 +975,50 @@ export const api = {
 
   // Payments
   getPayments: () => apiRequest<PaymentRecord[]>('/api/payments'),
-  createPayment: (payload: {
+  createPayment: async (payload: {
     bookingId: string;
     amount: number;
     method?: string;
     paymentStatus?: string;
     razorpayPaymentId?: string;
-  }) =>
-    apiRequest<{ message: string; payment: PaymentRecord; receiptNumber: string }>('/api/payments', {
+    userName?: string;
+    userEmail?: string;
+  }) => {
+    try {
+      const res = await apiRequest<{ message: string; payment: PaymentRecord; receiptNumber: string }>('/api/payments', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      try {
+        const localPayments: PaymentRecord[] = JSON.parse(localStorage.getItem(PAYMENTS_STORAGE_KEY) || '[]');
+        if (res?.payment && !localPayments.some((p) => p.id === res.payment.id)) {
+          localPayments.unshift(res.payment);
+          localStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(localPayments));
+        }
+      } catch {
+        // ignore
+      }
+      return res;
+    } catch (err) {
+      return handleLocalFallback<any>('/api/payments', { method: 'POST', body: JSON.stringify(payload) }, err);
+    }
+  },
+
+  // Payment Gateway Configuration & Order Generation
+  getPaymentConfig: () => apiRequest<PaymentSettings>('/api/payment-config'),
+  updatePaymentConfig: (payload: Partial<PaymentSettings>) =>
+    apiRequest<{ message: string; settings: PaymentSettings }>('/api/payment-config', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  createPaymentOrder: (payload: { bookingId?: string; amount: number; serviceTitle?: string }) =>
+    apiRequest<{ id: string; orderId: string; amount: number; currency: string; keyId: string }>(
+      '/api/payment/create-order',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    ),
 
   // Enquiries
   getEnquiries: () => apiRequest<Enquiry[]>('/api/enquiries'),

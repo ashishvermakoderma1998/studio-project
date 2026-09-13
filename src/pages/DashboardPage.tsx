@@ -14,12 +14,15 @@ import {
   Plus, 
   Phone,
   ShieldCheck,
-  FileText
+  FileText,
+  KeyRound,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../api/client';
 import { Booking } from '../types';
+import { AccountSecurityModal } from '../components/AccountSecurityModal';
 
 interface DashboardPageProps {
   onOpenBooking: () => void;
@@ -33,6 +36,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onOpenBooking, onN
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBookingForReceipt, setSelectedBookingForReceipt] = useState<Booking | null>(null);
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
 
   const fetchBookings = () => {
     setLoading(true);
@@ -140,9 +144,30 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onOpenBooking, onN
               className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500 shadow-lg shadow-amber-500/20"
             />
             <div className="space-y-1">
-              <span className="px-2.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-[10px] uppercase">
-                Client Portal
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-[10px] uppercase">
+                  Client Portal
+                </span>
+                {user.mfaEnabled && (
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-bold text-[10px] flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" />
+                    2FA Protected
+                  </span>
+                )}
+                {user.isVerified ? (
+                  <span className="px-2 py-0.5 rounded bg-blue-500/20 border border-blue-500/40 text-blue-400 font-bold text-[10px] flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Verified Client
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setIsSecurityModalOpen(true)}
+                    className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-[10px] hover:bg-amber-500/20"
+                  >
+                    Verify Email
+                  </button>
+                )}
+              </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold font-serif text-white">{user.name}</h1>
               <p className="text-xs text-neutral-400 flex items-center gap-3">
                 <span>{user.email}</span>
@@ -152,7 +177,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onOpenBooking, onN
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setIsSecurityModalOpen(true)}
+              className="px-4 py-3 rounded-2xl bg-neutral-900 border border-neutral-700 hover:bg-neutral-800 text-neutral-200 font-bold text-xs sm:text-sm flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <ShieldCheck className="w-4 h-4 text-amber-400" />
+              <span>Security & 2FA</span>
+            </button>
             <button
               onClick={onOpenBooking}
               className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-600 text-neutral-950 font-bold text-xs sm:text-sm shadow-xl shadow-amber-500/25 hover:scale-105 transition-all flex items-center gap-2"
@@ -162,6 +194,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onOpenBooking, onN
             </button>
           </div>
         </div>
+
+        {/* Account Security Modal */}
+        <AccountSecurityModal
+          isOpen={isSecurityModalOpen}
+          onClose={() => setIsSecurityModalOpen(false)}
+        />
 
         {/* Bookings List Section */}
         <div className="space-y-6">

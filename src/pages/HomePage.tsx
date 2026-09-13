@@ -108,12 +108,12 @@ export const HomePage: React.FC<HomePageProps> = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="flex flex-wrap items-center justify-center gap-4 pt-4"
+            className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 pt-4 w-full max-w-md sm:max-w-none mx-auto"
           >
             <button
               id="hero-book-now-btn"
               onClick={() => onOpenBooking()}
-              className="px-8 py-4 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-neutral-950 font-extrabold text-sm sm:text-base shadow-2xl shadow-amber-500/30 hover:shadow-amber-500/50 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+              className="w-full sm:w-auto px-7 sm:px-8 py-3.5 sm:py-4 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-neutral-950 font-extrabold text-sm sm:text-base shadow-2xl shadow-amber-500/30 hover:shadow-amber-500/50 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Calendar className="w-5 h-5" />
               <span>Book Your Event Now</span>
@@ -122,7 +122,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             <button
               id="hero-view-services-btn"
               onClick={() => onNavigate('services')}
-              className="px-7 py-4 rounded-full bg-neutral-900/80 hover:bg-neutral-800 border border-neutral-700 text-white font-bold text-sm sm:text-base backdrop-blur-md hover:border-amber-500/50 transition-all flex items-center gap-2"
+              className="w-full sm:w-auto px-6 sm:px-7 py-3.5 sm:py-4 rounded-full bg-neutral-900/80 hover:bg-neutral-800 border border-neutral-700 text-white font-bold text-sm sm:text-base backdrop-blur-md hover:border-amber-500/50 transition-all flex items-center justify-center gap-2"
             >
               <Camera className="w-5 h-5 text-amber-400" />
               <span>Explore 14 Services</span>
@@ -131,7 +131,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             <button
               id="hero-view-gallery-btn"
               onClick={() => onNavigate('gallery')}
-              className="px-6 py-4 rounded-full bg-neutral-900/40 hover:bg-neutral-900 text-neutral-300 hover:text-white font-medium text-sm sm:text-base border border-neutral-800 transition-colors"
+              className="w-full sm:w-auto px-6 py-3.5 sm:py-4 rounded-full bg-neutral-900/40 hover:bg-neutral-900 text-neutral-300 hover:text-white font-medium text-sm sm:text-base border border-neutral-800 transition-colors flex items-center justify-center"
             >
               View 4K Gallery
             </button>

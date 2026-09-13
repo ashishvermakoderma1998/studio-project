@@ -14,7 +14,11 @@ import {
   FileText, 
   Printer, 
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  User as UserIcon,
+  Phone,
+  Mail,
+  MessageCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -57,10 +61,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showRazorpay, setShowRazorpay] = useState(false);
 
-  // Guest details if not logged in
-  const [guestName, setGuestName] = useState('');
-  const [guestEmail, setGuestEmail] = useState('');
-  const [guestPhone, setGuestPhone] = useState('');
+  // Guest or client details
+  const [clientName, setClientName] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      if (!clientName) setClientName(user.name);
+      if (!clientEmail) setClientEmail(user.email);
+      if (!clientPhone && user.phone) setClientPhone(user.phone);
+    }
+  }, [user]);
 
   useEffect(() => {
     api.getServices().then((res) => {
@@ -97,9 +109,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const handleSubmitBooking = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user) {
-      showToast('Please sign in or register to complete your studio booking.', 'info');
-      if (onNavigateToLogin) onNavigateToLogin();
+    const finalName = (clientName || user?.name || '').trim();
+    const finalPhone = (clientPhone || user?.phone || '').trim();
+    const finalEmail = (clientEmail || user?.email || '').trim();
+
+    if (!finalName) {
+      showToast('Please enter your full name so the studio can identify your booking.', 'error');
+      return;
+    }
+
+    if (!finalPhone) {
+      showToast('Please enter your phone or WhatsApp number so director Ashish can reach you.', 'error');
       return;
     }
 
@@ -124,6 +144,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         referenceImages,
         bookingAmount: calculatedPrice,
         advanceAmount,
+        userName: finalName,
+        userPhone: finalPhone,
+        userEmail: finalEmail || `${finalName.toLowerCase().replace(/\s+/g, '')}@gmail.com`,
       };
 
       const booking = await api.createBooking(payload);
@@ -149,6 +172,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           method: paymentData.method,
           paymentStatus: 'Success',
           razorpayPaymentId: paymentData.transactionId,
+          userName: createdBooking.userName,
+          userEmail: createdBooking.userEmail,
         });
 
         // Update local state to show receipt
@@ -200,7 +225,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+              className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -209,22 +234,73 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           {/* Body */}
           {step === 'form' ? (
             <form onSubmit={handleSubmitBooking} className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
-              {/* Not Logged In Notice */}
-              {!user && (
-                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 text-xs text-amber-200">
-                    <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
-                    <span>Please sign in to securely link your booking and receive instant receipts.</span>
+              {/* Client Personal Details (Supports Guest & Registered) */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-neutral-900/90 border border-amber-500/30 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400">
+                    <UserIcon className="w-4 h-4" />
+                    <span>Client Contact Details</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={onNavigateToLogin}
-                    className="px-3.5 py-1.5 rounded-lg bg-amber-500 text-neutral-950 font-bold text-xs shrink-0"
-                  >
-                    Sign In Now
-                  </button>
+                  {user ? (
+                    <span className="text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1 font-semibold">
+                      <ShieldCheck className="w-3 h-3" />
+                      Logged In: {user.name}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 font-medium">
+                      Direct Guest Booking (No Login Required)
+                    </span>
+                  )}
                 </div>
-              )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-neutral-300 block mb-1 font-semibold">
+                      Your Full Name <span className="text-amber-400">*</span>
+                    </label>
+                    <input
+                      id="booking-client-name"
+                      type="text"
+                      required
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      placeholder="Enter your full name"
+                      className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-neutral-300 block mb-1 font-semibold flex items-center gap-1">
+                      <Phone className="w-3.5 h-3.5 text-amber-400" />
+                      <span>WhatsApp / Mobile Phone <span className="text-amber-400">*</span></span>
+                    </label>
+                    <input
+                      id="booking-client-phone"
+                      type="tel"
+                      required
+                      value={clientPhone}
+                      onChange={(e) => setClientPhone(e.target.value)}
+                      placeholder="Enter your mobile number"
+                      className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-xs text-neutral-300 block mb-1 font-semibold flex items-center gap-1">
+                      <Mail className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Email Address (For Invoice & Updates)</span>
+                    </label>
+                    <input
+                      id="booking-client-email"
+                      type="email"
+                      value={clientEmail}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                      placeholder="Enter your email address"
+                      className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
 
               {/* Service Selection */}
               <div>
@@ -423,7 +499,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             </form>
           ) : (
             /* Receipt Step */
-            <div className="p-8 space-y-6 max-h-[75vh] overflow-y-auto">
+            <div className="p-6 sm:p-8 space-y-6 max-h-[75vh] overflow-y-auto">
               <div className="text-center space-y-2">
                 <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center text-emerald-400 mx-auto">
                   <CheckCircle2 className="w-8 h-8" />
@@ -455,7 +531,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     </div>
                     <div>
                       <span className="text-neutral-500 block text-[10px] uppercase">Contact Phone</span>
-                      <span className="text-white">{createdBooking.userPhone || user?.phone || 'On Record'}</span>
+                      <span className="text-white">{createdBooking.userPhone || clientPhone || 'On Record'}</span>
                     </div>
                     <div>
                       <span className="text-neutral-500 block text-[10px] uppercase">Service Selected</span>
@@ -473,7 +549,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
                   <div className="pt-3 border-t border-neutral-800 flex justify-between items-center text-sm">
                     <div>
-                      <span className="text-emerald-400 font-bold block">Advance Paid via Razorpay</span>
+                      <span className="text-emerald-400 font-bold block">Advance Paid via Payment Gateway</span>
                       <span className="text-[10px] text-neutral-400">Txn: {createdBooking.paymentId || 'RZP-VERIFIED'}</span>
                     </div>
                     <span className="text-lg font-bold text-amber-400">
@@ -483,11 +559,36 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </div>
               )}
 
+              {/* Direct WhatsApp notification to Ashish */}
+              {createdBooking && (
+                <a
+                  href={`https://wa.me/918709017294?text=${encodeURIComponent(
+                    `*Namaste Ashish ji!* 🌸\n` +
+                    `I have just booked a studio package on your website:\n\n` +
+                    `📌 *Booking Ref:* ${createdBooking.bookingNumber}\n` +
+                    `👤 *Client Name:* ${createdBooking.userName}\n` +
+                    `📞 *Contact Phone:* ${createdBooking.userPhone || clientPhone}\n` +
+                    `🎬 *Service:* ${createdBooking.serviceTitle}\n` +
+                    `📅 *Event Date:* ${createdBooking.eventDate} (${createdBooking.eventTime})\n` +
+                    `📍 *Venue:* ${createdBooking.eventLocation}\n` +
+                    `💰 *Advance Paid:* ₹${createdBooking.advanceAmount.toLocaleString('en-IN')}\n` +
+                    `💳 *Txn ID:* ${createdBooking.paymentId || 'RZP-ONLINE'}\n\n` +
+                    `Please confirm our date and send confirmation. Dhanyawad!`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  <span>Send Booking to Ashish on WhatsApp (+91 87090 17294)</span>
+                </a>
+              )}
+
               {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <button
                   onClick={() => window.print()}
-                  className="flex-1 py-3 rounded-xl bg-neutral-900 border border-neutral-700 hover:bg-neutral-800 text-neutral-200 font-semibold text-xs flex items-center justify-center gap-2"
+                  className="flex-1 py-3 rounded-xl bg-neutral-900 border border-neutral-700 hover:bg-neutral-800 text-neutral-200 font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Printer className="w-4 h-4 text-amber-400" />
                   <span>Print Receipt</span>
@@ -497,7 +598,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     onClose();
                     if (onNavigateToDashboard) onNavigateToDashboard();
                   }}
-                  className="flex-1 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs flex items-center justify-center gap-2"
+                  className="flex-1 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <FileText className="w-4 h-4" />
                   <span>View in My Dashboard</span>

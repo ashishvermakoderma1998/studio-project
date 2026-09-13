@@ -9,11 +9,53 @@ export interface User {
   avatar?: string;
   city?: string;
   createdAt: string;
+  emailVerified?: boolean;
+  mfaEnabled?: boolean;
+  lastLoginAt?: string;
+  lastLoginIp?: string;
 }
 
 export interface AuthResponse {
   token: string;
   user: User;
+  mfaRequired?: boolean;
+  mfaChallengeToken?: string;
+  message?: string;
+}
+
+export interface SecurityAuditLog {
+  id: string;
+  timestamp: string;
+  eventType: 
+    | 'LOGIN_SUCCESS'
+    | 'LOGIN_FAILED'
+    | 'ACCOUNT_LOCKED'
+    | 'LOGOUT'
+    | 'PASSWORD_RESET_REQUEST'
+    | 'PASSWORD_RESET_SUCCESS'
+    | 'EMAIL_VERIFIED'
+    | 'GMAIL_OTP_DISPATCHED'
+    | 'GMAIL_OTP_VERIFIED'
+    | 'GMAIL_OTP_FAILED'
+    | 'MFA_ENABLED'
+    | 'MFA_DISABLED'
+    | 'MFA_CHALLENGE_SUCCESS'
+    | 'MFA_CHALLENGE_FAILED'
+    | 'UNAUTHORIZED_ACCESS_ATTEMPT'
+    | 'RATE_LIMIT_EXCEEDED'
+    | 'SUSPICIOUS_INPUT';
+  severity: 'info' | 'warn' | 'critical';
+  userId?: string;
+  emailMasked?: string;
+  ip?: string;
+  userAgent?: string;
+  details: string;
+}
+
+export interface MfaSetupData {
+  secret: string;
+  otpauthUrl: string;
+  recoveryCodes: string[];
 }
 
 export type ServiceCategory = 
@@ -170,3 +212,18 @@ export interface AdminStats {
   totalReviews: number;
   pendingReviews: number;
 }
+
+export interface PaymentSettings {
+  upiId: string;
+  phone: string;
+  merchantName: string;
+  bankName: string;
+  accountNumber: string;
+  ifscCode: string;
+  accountHolder: string;
+  razorpayKeyId: string;
+  razorpayKeySecret?: string;
+  studioLocation: string;
+  currency: string;
+}
+

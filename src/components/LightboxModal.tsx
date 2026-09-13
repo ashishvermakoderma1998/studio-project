@@ -14,23 +14,24 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({ item, onClose, onO
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-xl animate-in fade-in duration-200">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/90 backdrop-blur-xl animate-in fade-in duration-200">
         <motion.div
           initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.92 }}
-          className="relative max-w-5xl w-full max-h-[90vh] bg-neutral-950 border border-neutral-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col lg:flex-row"
+          className="relative max-w-5xl w-full max-h-[92vh] bg-neutral-950 border border-neutral-800 rounded-2xl sm:rounded-3xl overflow-y-auto lg:overflow-hidden shadow-2xl flex flex-col lg:flex-row"
         >
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-20 p-2.5 rounded-full bg-black/60 hover:bg-neutral-800 text-white transition-colors"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 p-2 sm:p-2.5 rounded-full bg-black/70 hover:bg-neutral-800 text-white transition-colors"
+            aria-label="Close Lightbox"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
           {/* Media View */}
-          <div className="flex-1 bg-black flex items-center justify-center min-h-[300px] lg:min-h-[500px] relative overflow-hidden">
+          <div className="flex-1 bg-black flex items-center justify-center min-h-[220px] sm:min-h-[300px] lg:min-h-[500px] relative overflow-hidden">
             {item.type === 'video' ? (
               <div className="w-full h-full flex flex-col items-center justify-center p-4">
                 <video

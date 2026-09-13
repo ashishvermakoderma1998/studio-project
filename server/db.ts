@@ -9,12 +9,40 @@ import {
   Enquiry, 
   Review, 
   GalleryItem,
-  KarizmaAlbumItem
+  KarizmaAlbumItem,
+  PaymentSettings,
+  SecurityAuditLog
 } from '../src/types';
 import { INITIAL_SERVICES, INITIAL_GALLERY, INITIAL_REVIEWS, INITIAL_KARIZMA_ALBUMS } from '../src/data/studioData';
 
+export interface UserRecord extends User {
+  passwordHash: string;
+  tokenVersion?: number;
+  emailVerified?: boolean;
+  verificationTokenHash?: string;
+  verificationTokenExpiry?: number;
+  resetTokenHash?: string;
+  resetTokenExpiry?: number;
+  mfaEnabled?: boolean;
+  mfaSecret?: string;
+  recoveryCodeHashes?: string[];
+  lastLoginAt?: string;
+  lastLoginIp?: string;
+}
+
+export interface PendingRegistration {
+  name: string;
+  email: string;
+  phone: string;
+  passwordHash: string;
+  otpHash: string;
+  expiresAt: number;
+  attempts: number;
+  otpHint?: string;
+}
+
 interface DatabaseSchema {
-  users: (User & { passwordHash: string })[];
+  users: UserRecord[];
   services: Service[];
   bookings: Booking[];
   payments: PaymentRecord[];
@@ -22,6 +50,8 @@ interface DatabaseSchema {
   reviews: Review[];
   gallery: GalleryItem[];
   karizmaAlbums: KarizmaAlbumItem[];
+  paymentSettings?: PaymentSettings;
+  securityAuditLogs?: SecurityAuditLog[];
 }
 
 const DATA_DIR = path.join(process.cwd(), '.data');
@@ -31,6 +61,7 @@ const DB_FILE = path.join(DATA_DIR, 'db.json');
 
 class Database {
   private data: DatabaseSchema;
+  private pendingRegistrations: Map<string, PendingRegistration> = new Map();
 
   constructor() {
     this.data = this.loadData();
@@ -178,36 +209,99 @@ class Database {
     this.saveData(this.data);
   }
 
-  // User methods
-  getUsers() {
-    return this.data.users.map(({ passwordHash, ...u }) => u);
+  // Safe user projection (strips password hashes, MFA secrets, recovery codes, tokens)
+  private toSafeUser(user: UserRecord): User {
+    const { 
+      passwordHash: _ph, 
+      mfaSecret: _ms, 
+      recoveryCodeHashes: _rc, 
+      verificationTokenHash: _vth, 
+      verificationTokenExpiry: _vte, 
+      resetTokenHash: _rth, 
+      resetTokenExpiry: _rte,
+      ...safe 
+    } = user;
+    return safe;
   }
 
-  getUserById(id: string) {
+  // User methods
+  getUsers(): User[] {
+    return this.data.users.map(u => this.toSafeUser(u));
+  }
+
+  getUserById(id: string): User | null {
     const u = this.data.users.find(x => x.id === id);
     if (!u) return null;
-    const { passwordHash, ...safe } = u;
-    return safe;
+    return this.toSafeUser(u);
   }
 
-  getUserByEmail(email: string) {
-    return this.data.users.find(x => x.email.toLowerCase() === email.toLowerCase());
+  getUserRecordById(id: string): UserRecord | null {
+    const u = this.data.users.find(x => x.id === id);
+    return u || null;
   }
 
-  createUser(user: User & { passwordHash: string }) {
+  getUserByEmail(email: string): UserRecord | null {
+    const clean = email.trim().toLowerCase();
+    return this.data.users.find(x => x.email.toLowerCase() === clean) || null;
+  }
+
+  createUser(user: UserRecord): User {
     this.data.users.push(user);
     this.persist();
-    const { passwordHash, ...safe } = user;
-    return safe;
+    return this.toSafeUser(user);
   }
 
-  updateUser(id: string, updates: Partial<User & { passwordHash: string }>) {
+  updateUser(id: string, updates: Partial<UserRecord>): User | null {
     const index = this.data.users.findIndex(x => x.id === id);
     if (index === -1) return null;
     this.data.users[index] = { ...this.data.users[index], ...updates };
     this.persist();
-    const { passwordHash, ...safe } = this.data.users[index];
-    return safe;
+    return this.toSafeUser(this.data.users[index]);
+  }
+
+  // Pending Registration with Gmail OTP
+  setPendingRegistration(reg: PendingRegistration): void {
+    const clean = reg.email.trim().toLowerCase();
+    this.pendingRegistrations.set(clean, { ...reg, email: clean });
+  }
+
+  getPendingRegistration(email: string): PendingRegistration | null {
+    const clean = email.trim().toLowerCase();
+    const reg = this.pendingRegistrations.get(clean);
+    if (!reg) return null;
+    if (Date.now() > reg.expiresAt) {
+      this.pendingRegistrations.delete(clean);
+      return null;
+    }
+    return reg;
+  }
+
+  deletePendingRegistration(email: string): void {
+    const clean = email.trim().toLowerCase();
+    this.pendingRegistrations.delete(clean);
+  }
+
+  // Security Audit Logging
+  logSecurityEvent(event: Omit<SecurityAuditLog, 'id' | 'timestamp'>): SecurityAuditLog {
+    if (!this.data.securityAuditLogs) {
+      this.data.securityAuditLogs = [];
+    }
+    const log: SecurityAuditLog = {
+      id: 'sec-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+      timestamp: new Date().toISOString(),
+      ...event
+    };
+    this.data.securityAuditLogs.unshift(log);
+    if (this.data.securityAuditLogs.length > 500) {
+      this.data.securityAuditLogs = this.data.securityAuditLogs.slice(0, 500);
+    }
+    this.persist();
+    return log;
+  }
+
+  getSecurityAuditLogs(limit = 100): SecurityAuditLog[] {
+    if (!this.data.securityAuditLogs) return [];
+    return this.data.securityAuditLogs.slice(0, limit);
   }
 
   // Services
@@ -420,6 +514,31 @@ class Database {
     album.spreads.splice(spreadIndex, 1);
     this.persist();
     return album;
+  }
+
+  getPaymentSettings(): PaymentSettings {
+    if (!this.data.paymentSettings) {
+      this.data.paymentSettings = {
+        upiId: '8709017294@ybl',
+        phone: '+91 87090 17294',
+        merchantName: 'Ashish Wedding Film Studio',
+        bankName: 'State Bank of India',
+        accountNumber: '',
+        ifscCode: '',
+        accountHolder: 'Ashish Kumar',
+        razorpayKeyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_ashish_studio',
+        studioLocation: 'Gumo, Kharitand, Jhumri Telaiya, Koderma, Jharkhand',
+        currency: 'INR'
+      };
+    }
+    return this.data.paymentSettings;
+  }
+
+  updatePaymentSettings(updates: Partial<PaymentSettings>): PaymentSettings {
+    const current = this.getPaymentSettings();
+    this.data.paymentSettings = { ...current, ...updates };
+    this.persist();
+    return this.data.paymentSettings;
   }
 }
 
