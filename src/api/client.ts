@@ -43,17 +43,6 @@ const seedLocalDataIfEmpty = () => {
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
         password: 'Ashish@2026!',
         createdAt: new Date().toISOString()
-      },
-      {
-        id: 'usr-demo-client',
-        name: 'Rohan Sharma',
-        email: 'rohan.client@gmail.com',
-        phone: '+91 87090 17294',
-        role: 'user',
-        city: 'Ranchi, Jharkhand',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
-        password: 'User@1234',
-        createdAt: new Date().toISOString()
       }
     ];
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(defaultUsers));
@@ -76,53 +65,11 @@ const seedLocalDataIfEmpty = () => {
   }
 
   if (!localStorage.getItem(BOOKINGS_STORAGE_KEY)) {
-    const defaultBookings: Booking[] = [
-      {
-        id: 'bkg-demo-1',
-        bookingNumber: 'AWF-2026-1082',
-        userId: 'usr-demo-client',
-        userName: 'Rohan Sharma',
-        userEmail: 'rohan.client@gmail.com',
-        userPhone: '+91 87090 17294',
-        serviceId: 'srv-wedding-photo',
-        serviceTitle: 'Wedding Photography',
-        servicePrice: 25000,
-        eventType: 'Traditional Wedding',
-        eventDate: '2026-11-20',
-        eventTime: '17:00',
-        eventLocation: 'Royal Palace Banquet, Jhumri Telaiya, Jharkhand',
-        hours: 8,
-        additionalRequirements: 'Require 2 candid photographers and 1 traditional team.',
-        referenceImages: [],
-        bookingAmount: 25000,
-        advanceAmount: 7500,
-        paymentStatus: 'Paid',
-        bookingStatus: 'Confirmed',
-        paymentId: 'pay_RZP_demo1082',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString(),
-        updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString()
-      }
-    ];
-    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(defaultBookings));
+    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify([]));
   }
 
   if (!localStorage.getItem(PAYMENTS_STORAGE_KEY)) {
-    const defaultPayments: PaymentRecord[] = [
-      {
-        id: 'pay-demo-1',
-        transactionId: 'txn_RZP_demo1082',
-        bookingId: 'bkg-demo-1',
-        userId: 'usr-demo-client',
-        userName: 'Rohan Sharma',
-        userEmail: 'rohan.client@gmail.com',
-        amount: 7500,
-        method: 'Razorpay',
-        paymentStatus: 'Success',
-        receiptNumber: 'RCP-2026-1082',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString()
-      }
-    ];
-    localStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(defaultPayments));
+    localStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify([]));
   }
 
   if (!localStorage.getItem(ENQUIRIES_STORAGE_KEY)) {
@@ -568,7 +515,7 @@ function handleLocalFallback<T>(endpoint: string, options: RequestInit = {}, ori
       const newBooking: Booking = {
         id: 'bkg-' + Date.now(),
         bookingNumber: 'AWF-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000),
-        userId: body.userId || 'usr-demo-client',
+        userId: body.userId || 'usr-client-' + Date.now(),
         userName: body.userName || 'Client',
         userEmail: body.userEmail || '',
         userPhone: body.userPhone || '',

@@ -18,7 +18,6 @@ interface AuthContextType {
     city?: string
   ) => Promise<{ user: User; verificationCodeHint?: string }>;
   loginWithDemoAdmin: () => Promise<any>;
-  loginWithDemoUser: () => Promise<any>;
   logout: () => Promise<void>;
   updateUser: (updated: User) => void;
   refreshUser: () => Promise<void>;
@@ -141,10 +140,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return login('ashishweddingfilm@gmail.com', 'Ashish@2026!');
   };
 
-  const loginWithDemoUser = async () => {
-    return login('rohan.client@gmail.com', 'User@1234');
-  };
-
   const logout = async () => {
     try {
       await api.logout();
@@ -179,7 +174,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resendRegisterOtp,
         register,
         loginWithDemoAdmin,
-        loginWithDemoUser,
         logout,
         updateUser,
         refreshUser,

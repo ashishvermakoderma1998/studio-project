@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="lensGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="50%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="glareGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#0284c7" stop-opacity="0.1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded badge -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#090d16" stroke="url(#goldGrad)" stroke-width="2.5"/>
+
+  <!-- Camera Body Top Pentaprism / Flash mount -->
+  <path d="M23 18 L27 12 L37 12 L41 18 Z" fill="url(#goldGrad)"/>
+  
+  <!-- Red Recording / Status Indicator Dot -->
+  <circle cx="16" cy="22" r="2.2" fill="#ef4444"/>
+
+  <!-- Camera Main Body -->
+  <rect x="10" y="18" width="44" height="34" rx="6" fill="url(#goldGrad)"/>
+  
+  <!-- Inner dark camera grip inset -->
+  <rect x="12" y="20" width="40" height="30" rx="4" fill="#0f172a"/>
+
+  <!-- Outer Lens Ring (Gold Accent) -->
+  <circle cx="32" cy="35" r="14" fill="url(#goldGrad)"/>
+
+  <!-- Lens Housing (Deep Black) -->
+  <circle cx="32" cy="35" r="11.5" fill="url(#lensGrad)"/>
+
+  <!-- Lens Core Elements -->
+  <circle cx="32" cy="35" r="7.5" fill="#020617" stroke="#0ea5e9" stroke-width="1.2"/>
+  <circle cx="32" cy="35" r="4" fill="#0369a1"/>
+
+  <!-- Cinema Optical Glass Glare -->
+  <path d="M26 29 A 9 9 0 0 1 37 28 A 9 9 0 0 0 28 37 Z" fill="url(#glareGrad)"/>
+  <circle cx="35" cy="32" r="1.5" fill="#ffffff" opacity="0.85"/>
+
+  <!-- Viewfinder / Sensor dot on top right -->
+  <rect x="42" y="22" width="6" height="4" rx="1.5" fill="url(#goldGrad)"/>
+</svg>

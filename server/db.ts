@@ -83,7 +83,6 @@ class Database {
 
     // Default Seed Data
     const adminPasswordHash = bcrypt.hashSync('Ashish@2026!', 10);
-    const demoUserPasswordHash = bcrypt.hashSync('User@1234', 10);
 
     const initialUsers: (User & { passwordHash: string })[] = [
       {
@@ -96,63 +95,11 @@ class Database {
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
         passwordHash: adminPasswordHash,
         createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365).toISOString()
-      },
-      {
-        id: 'usr-demo-client',
-        name: 'Rohan Sharma',
-        email: 'rohan.client@gmail.com',
-        phone: '+91 87090 17294',
-        role: 'user',
-        city: 'Ranchi, Jharkhand',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
-        passwordHash: demoUserPasswordHash,
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45).toISOString()
       }
     ];
 
-    const initialBookings: Booking[] = [
-      {
-        id: 'bkg-1001',
-        bookingNumber: 'AWF-2026-8801',
-        userId: 'usr-demo-client',
-        userName: 'Rohan Sharma',
-        userEmail: 'rohan.client@gmail.com',
-        userPhone: '+91 87090 17294',
-        serviceId: 'srv-cinematic-film',
-        serviceTitle: 'Cinematic Wedding Films',
-        servicePrice: 45000,
-        eventType: 'Wedding & Sangeet',
-        eventDate: '2026-11-20',
-        eventTime: '18:00',
-        eventLocation: 'Grand Utsav Marriage Hall, Jhumri Telaiya',
-        hours: 12,
-        additionalRequirements: 'Drone shots during bride arrival and live Sangeet mixer recording.',
-        referenceImages: ['https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80'],
-        bookingAmount: 45000,
-        advanceAmount: 15000,
-        paymentStatus: 'Paid',
-        bookingStatus: 'Confirmed',
-        paymentId: 'pay-txn-88991',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString(),
-        updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString()
-      }
-    ];
-
-    const initialPayments: PaymentRecord[] = [
-      {
-        id: 'pay-1',
-        transactionId: 'pay-txn-88991',
-        bookingId: 'bkg-1001',
-        userId: 'usr-demo-client',
-        userName: 'Rohan Sharma',
-        userEmail: 'rohan.client@gmail.com',
-        amount: 15000,
-        method: 'Razorpay',
-        paymentStatus: 'Success',
-        receiptNumber: 'RCPT-AWF-9901',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString()
-      }
-    ];
+    const initialBookings: Booking[] = [];
+    const initialPayments: PaymentRecord[] = [];
 
     const initialEnquiries: Enquiry[] = [
       {

@@ -39,8 +39,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
     sendRegisterOtp, 
     verifyRegisterOtp, 
     resendRegisterOtp, 
-    loginWithDemoAdmin, 
-    loginWithDemoUser 
+    loginWithDemoAdmin 
   } = useAuth();
   const { showToast } = useToast();
 
@@ -271,17 +270,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
     }
   };
 
-  const handleDemoLogin = async (role: 'admin' | 'user') => {
+  const handleDemoAdminLogin = async () => {
     setLoading(true);
     setErrorMessage(null);
     try {
-      if (role === 'admin') {
-        await loginWithDemoAdmin();
-        showToast('Logged in as Studio Admin (Ashish Ji)', 'success');
-      } else {
-        await loginWithDemoUser();
-        showToast('Logged in as Client Portal', 'success');
-      }
+      await loginWithDemoAdmin();
+      showToast('Logged in as Studio Admin (Ashish Ji)', 'success');
       onSuccess();
     } catch (err: any) {
       setErrorMessage(err?.message || 'Demo login failed');
@@ -329,33 +323,23 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login', onSuc
           </div>
         )}
 
-        {/* Demo Quick Login Buttons - Only on Sign In */}
+        {/* Demo Quick Login Button - Only on Sign In */}
         {mode === 'login' && (
           <div className="p-4 rounded-2xl bg-neutral-900 border border-amber-500/30 space-y-2.5">
             <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1">
               <Sparkles className="w-3.5 h-3.5" />
-              Quick 1-Click Demo Logins
+              Quick 1-Click Studio Login
             </span>
-            <div className="grid grid-cols-2 gap-2">
+            <div>
               <button
                 id="demo-admin-login-btn"
                 type="button"
-                onClick={() => handleDemoLogin('admin')}
+                onClick={handleDemoAdminLogin}
                 disabled={loading}
-                className="py-2.5 px-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold hover:bg-amber-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="w-full py-2.5 px-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold hover:bg-amber-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 <ShieldCheck className="w-4 h-4 text-amber-400" />
-                <span>Admin Studio Desk</span>
-              </button>
-              <button
-                id="demo-user-login-btn"
-                type="button"
-                onClick={() => handleDemoLogin('user')}
-                disabled={loading}
-                className="py-2.5 px-3 rounded-xl bg-neutral-800 border border-neutral-700 text-neutral-200 text-xs font-bold hover:bg-neutral-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-              >
-                <UserIcon className="w-4 h-4 text-amber-400" />
-                <span>Client Portal</span>
+                <span>Admin Studio Desk (Ashish Ji)</span>
               </button>
             </div>
           </div>
