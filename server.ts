@@ -1222,30 +1222,22 @@ async function startServer() {
   // BOOKINGS ROUTES
   // ==========================================
 
-  // Get bookings (Admin gets all, regular user gets their own)
+  // Get bookings (Admin gets all, regular logged-in user gets their own)
   app.get('/api/bookings', optionalAuth, (req: AuthRequest, res: Response) => {
-    const isAdmin = 
-      req.user?.role === 'admin' || 
-      req.user?.email === 'ashishweddingfilm@gmail.com' ||
-      req.headers['x-admin-role'] === 'admin' ||
-      req.query.role === 'admin' ||
-      req.query.admin === 'true';
-
-    if (isAdmin) {
+    if (!req.user || req.user.role === 'admin') {
       return res.json(db.getBookings());
     }
-    if (req.user) {
-      const userBookings = db.getBookingsByUser(req.user.id);
-      return res.json(userBookings);
-    }
-    // Default fallback returns all bookings for studio admin view
-    return res.json(db.getBookings());
+    const userBookings = db.getBookingsByUser(req.user.id);
+    return res.json(userBookings);
   });
 
-  // Get single booking
-  app.get('/api/bookings/:id', optionalAuth, (req: AuthRequest, res: Response) => {
+  // Get single booking (Admin or Booking Owner)
+  app.get('/api/bookings/:id', authenticateToken, (req: AuthRequest, res: Response) => {
     const booking = db.getBookingById(req.params.id);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    if (req.user!.role !== 'admin' && booking.userId !== req.user!.id) {
+      return res.status(403).json({ error: 'Unauthorized to view this booking' });
+    }
     res.json(booking);
   });
 

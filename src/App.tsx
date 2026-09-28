@@ -134,7 +134,7 @@ const MainAppContent: React.FC = () => {
           />
         )}
 
-        {(currentPage === 'login' || currentPage === 'signup' || currentPage === 'admin-login') && (
+        {(currentPage === 'login' || currentPage === 'signup') && (
           <AuthPage
             initialMode={currentPage === 'signup' ? 'signup' : 'login'}
             onNavigate={navigateTo}
@@ -157,7 +157,7 @@ const MainAppContent: React.FC = () => {
 
         {currentPage === 'admin' && (
           <AdminDashboardPage
-            onNavigateToLogin={() => navigateTo('admin-login')}
+            onNavigateToLogin={() => navigateTo('login')}
           />
         )}
 
